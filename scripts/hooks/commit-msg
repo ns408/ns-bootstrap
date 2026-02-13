@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# commit-msg hook: strip AI-generated Co-Authored-By trailers
+
+msg_file="$1"
+
+# Remove Co-Authored-By lines referencing AI tools (case-insensitive)
+grep -ivE '^Co-Authored-By:.*(Claude|Copilot|GPT|OpenAI|Anthropic|Gemini|Codeium|Cursor|Windsurf)' "$msg_file" > "${msg_file}.tmp" || true
+
+# Remove trailing blank lines using awk (portable across macOS and Linux)
+awk '/^[[:space:]]*$/ { blank = blank "\n"; next } { printf "%s%s\n", blank, $0; blank = "" }' "${msg_file}.tmp" > "$msg_file"
+
+rm -f "${msg_file}.tmp"
