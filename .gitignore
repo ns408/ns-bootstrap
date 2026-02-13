@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# Environment files (never commit secrets)
+.env
+.env.*
+!.env.template
+
+# Editor/IDE
+*.swp
+*.swo
+*~
+.claude/
+.cursor/
+.windsurfrules
+.cursorrules
+.clinerules
+AGENTS.md
+.github/copilot-instructions.md
+
+# Homebrew
+*.lock.json
+
+# Dependencies
+node_modules/
+
+# Misc
+*.log

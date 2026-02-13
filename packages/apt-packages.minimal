@@ -1,0 +1,21 @@
+# Minimal Profile - Ubuntu packages
+# Usage: xargs -a apt-packages.minimal sudo apt install -y
+git
+vim
+tmux
+curl
+wget
+tree
+jq
+nmap
+gnupg2
+rsync
+htop
+psmisc
+make
+# Modern CLI tools
+ripgrep
+fd-find
+bat
+fzf
+btop

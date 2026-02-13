@@ -1,0 +1,28 @@
+name: Brew Bundle Check
+
+on:
+  schedule:
+    - cron: '0 9 1 * *'  # First of each month at 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Verify Brewfile packages
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        profile: [minimal, developer, cloud-engineer]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Brewfile.${{ matrix.profile }}
+        run: |
+          brew bundle check --file=packages/Brewfile.${{ matrix.profile }} --no-upgrade 2>&1 || true
+          echo "---"
+          echo "Checking for removed formulae..."
+          while IFS= read -r line; do
+            name=$(echo "$line" | awk '{print $2}' | tr -d '"')
+            if [[ -n "$name" ]] && ! brew info "$name" &>/dev/null 2>&1; then
+              echo "⚠ Formula/cask not found: $name"
+            fi
+          done < <(grep -E '^(brew|cask) ' "packages/Brewfile.${{ matrix.profile }}")

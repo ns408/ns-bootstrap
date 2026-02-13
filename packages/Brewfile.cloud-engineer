@@ -1,0 +1,126 @@
+# Cloud Engineer Profile - Developer + cloud/infra tools
+# Usage: brew bundle --file=Brewfile.cloud-engineer
+
+# Taps
+tap "hashicorp/tap"
+
+# Include everything from developer
+brew "bash"
+brew "coreutils"
+brew "git"
+brew "gnupg"
+brew "jq"
+brew "make"
+brew "mas"
+brew "nmap"
+brew "openssl@3"
+brew "pdfgrep"
+brew "pstree"
+brew "rsync"
+brew "sslscan"
+brew "starship"
+brew "telnet"
+brew "tmux"
+brew "tree"
+brew "watch"
+brew "wget"
+
+# Modern CLI tools
+brew "ripgrep"
+brew "fd"
+brew "fzf"
+brew "bat"
+brew "zoxide"
+brew "eza"
+brew "git-delta"
+brew "btop"
+brew "dust"
+brew "duf"
+brew "procs"
+brew "hyperfine"
+brew "httpie"
+brew "gping"
+brew "tldr"
+brew "direnv"
+brew "doggo"
+brew "knot"
+brew "yq"
+
+# Version management
+brew "mise"
+
+# AWS
+brew "awscli"
+
+# Development tools
+brew "binutils"
+brew "cmake"
+brew "dos2unix"
+brew "gh"
+brew "git-absorb"
+brew "gnu-sed"
+brew "grep"
+brew "pinentry-mac"
+brew "shellcheck"
+brew "thefuck"
+brew "yt-dlp"
+
+# Languages
+brew "go"
+
+# Cloud & Infrastructure
+brew "aws-iam-authenticator"
+brew "azure-cli"
+brew "hashicorp/tap/terraform"
+brew "kubectl"
+brew "helm"
+brew "mysql-client"
+
+# Security tools
+brew "qrencode"
+
+# GUI apps (developer + cloud-specific)
+cask "1password"
+cask "1password-cli"
+cask "brave-browser"
+cask "corretto"
+cask "docker"
+cask "drawio"
+cask "firefox"
+cask "ghostty"
+cask "google-chrome"
+cask "google-drive"
+cask "gpg-suite"
+cask "iina"
+cask "imageoptim"
+cask "iterm2"
+cask "keka"
+cask "little-snitch"
+cask "maccy"
+cask "microsoft-auto-update"
+cask "microsoft-edge"
+cask "microsoft-office"
+cask "microsoft-teams"
+cask "mullvadvpn"
+cask "numi"
+cask "orbstack"
+cask "pearcleaner"
+cask "proxyman"
+cask "rectangle"
+cask "slack"
+cask "suspicious-package"
+cask "tor-browser"
+cask "tunnelblick"
+cask "utm"
+cask "vagrant"
+cask "vagrant-manager"
+cask "veracrypt"
+cask "visual-studio-code"
+cask "vlc"
+cask "wireshark"
+cask "zoom"
+
+# Mac App Store
+mas "1Password for Safari", id: 1569813296
+mas "SimpleMind _ Mind Mapping", id: 439654198
+mas "Xcode", id: 497799835

@@ -1,0 +1,14 @@
+# Atuin configuration
+# https://docs.atuin.sh/configuration/config/
+
+# ─── Sync (disabled — local-only mode) ───────────────────────
+sync_address = ""
+auto_sync = false
+
+# ─── Search ──────────────────────────────────────────────────
+search_mode = "fuzzy"
+filter_mode = "global"
+style = "compact"
+
+# ─── History ─────────────────────────────────────────────────
+update_check = false

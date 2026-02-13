@@ -1,0 +1,77 @@
+# Minimal Profile - Essential tools for any macOS setup
+# Usage: brew bundle --file=Brewfile.minimal
+
+# Core CLI tools
+brew "bash"
+brew "coreutils"
+brew "git"
+brew "gnupg"
+brew "jq"
+brew "make"
+brew "mas"
+brew "nmap"
+brew "openssl@3"
+brew "pdfgrep"
+brew "pstree"
+brew "rsync"
+brew "sslscan"
+brew "starship"
+brew "telnet"
+brew "tmux"
+brew "tree"
+brew "watch"
+brew "wget"
+
+# Modern CLI tools
+brew "ripgrep"
+brew "fd"
+brew "fzf"
+brew "bat"
+brew "zoxide"
+brew "eza"
+brew "git-delta"
+brew "btop"
+brew "dust"
+brew "duf"
+brew "procs"
+brew "hyperfine"
+brew "httpie"
+brew "gping"
+brew "tldr"
+brew "direnv"
+brew "doggo"
+brew "knot"
+brew "yq"
+
+# Security
+brew "gitleaks"
+
+# Version management
+brew "mise"
+
+# GUI apps
+cask "1password"
+cask "brave-browser"
+cask "firefox"
+cask "ghostty"
+cask "google-chrome"
+cask "google-drive"
+cask "gpg-suite"
+cask "iina"
+cask "iterm2"
+cask "keka"
+cask "little-snitch"
+cask "microsoft-edge"
+cask "numi"
+cask "rectangle"
+cask "slack"
+cask "suspicious-package"
+cask "utm"
+cask "visual-studio-code"
+cask "vlc"
+cask "zoom"
+
+# Mac App Store
+mas "1Password for Safari", id: 1569813296
+mas "SimpleMind _ Mind Mapping", id: 439654198
+mas "Xcode", id: 497799835

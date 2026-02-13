@@ -1,0 +1,96 @@
+# Starship Prompt Configuration
+# https://starship.rs/config/
+
+# Prompt format — show what matters for cloud engineering
+format = """
+$username$hostname$directory$git_branch$git_status\
+$aws$kubernetes$docker_context$terraform\
+$python$nodejs$ruby$golang\
+$cmd_duration$line_break$character"""
+
+# Performance
+scan_timeout = 30
+command_timeout = 500
+
+[character]
+success_symbol = '[>](bold green)'
+error_symbol = '[>](bold red)'
+
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+style = 'bold cyan'
+
+[git_branch]
+symbol = ''
+format = 'on [$symbol$branch(:$remote_branch)]($style) '
+style = 'bold purple'
+truncation_length = 30
+
+[git_status]
+format = '([\[$all_status$ahead_behind\]]($style) )'
+style = 'bold red'
+ahead = 'A${count}'
+behind = 'B${count}'
+diverged = 'D${ahead_count}/${behind_count}'
+staged = '+${count}'
+modified = '~${count}'
+untracked = '?${count}'
+
+[aws]
+format = '[$symbol($profile)(\($region\))]($style) '
+symbol = 'aws '
+style = 'bold 208'
+
+[aws.region_aliases]
+us-east-1 = 'use1'
+us-west-2 = 'usw2'
+eu-west-1 = 'euw1'
+ap-southeast-1 = 'apse1'
+ap-southeast-2 = 'apse2'
+
+[kubernetes]
+disabled = false
+format = '[$symbol$context(\($namespace\))]($style) '
+symbol = 'k8s '
+style = 'bold blue'
+
+[docker_context]
+format = '[$symbol$context]($style) '
+symbol = 'docker '
+style = 'bold blue'
+only_with_files = true
+
+[terraform]
+format = '[$symbol$workspace]($style) '
+symbol = 'tf '
+style = 'bold 105'
+
+[python]
+format = '[$symbol$version(\($virtualenv\))]($style) '
+symbol = 'py '
+style = 'bold yellow'
+detect_extensions = ['py']
+detect_files = ['requirements.txt', 'pyproject.toml', 'Pipfile', '.python-version']
+
+[nodejs]
+format = '[$symbol$version]($style) '
+symbol = 'node '
+style = 'bold green'
+detect_files = ['package.json', '.node-version']
+
+[ruby]
+format = '[$symbol$version]($style) '
+symbol = 'rb '
+style = 'bold red'
+detect_files = ['Gemfile', '.ruby-version']
+
+[golang]
+format = '[$symbol$version]($style) '
+symbol = 'go '
+style = 'bold cyan'
+
+[cmd_duration]
+min_time = 2_000
+format = 'took [$duration]($style) '
+style = 'bold yellow'

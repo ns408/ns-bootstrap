@@ -1,0 +1,189 @@
+[user]
+    name = ${GIT_NAME_PERSONAL}
+    email = ${GIT_EMAIL_PERSONAL}
+    signingkey = ${GIT_SIGNING_KEY}
+
+[includeIf "gitdir:${WORK_REPO_DIR}"]
+    path = ~/.gitconfig-work
+
+# ─── Init ──────────────────────────────────────────────────────
+[init]
+    defaultBranch = main
+
+# ─── Core ──────────────────────────────────────────────────────
+[core]
+    excludesfile = ${HOME}/.gitignore_global
+    hooksPath = ${HOME}/.config/git/hooks
+    whitespace = space-before-tab,trailing-space
+    preloadindex = true
+    fsmonitor = true
+    untrackedCache = true
+
+# ─── Signing (SSH via 1Password) ──────────────────────────────
+[gpg]
+    format = ssh
+
+[gpg "ssh"]
+    program = ${OP_SSH_SIGN_PATH}
+    allowedSignersFile = ${HOME}/.gitconfig_allowed-signers
+
+[commit]
+    gpgsign = true
+    verbose = true
+
+
+[tag]
+    gpgsign = true
+    sort = version:refname
+
+# ─── Diff ──────────────────────────────────────────────────────
+[diff]
+    algorithm = histogram
+    colorMoved = plain
+    mnemonicPrefix = true
+    renames = true
+    tool = vscode
+
+[difftool "vscode"]
+    cmd = code --wait --diff "$LOCAL" "$REMOTE"
+
+# ─── Merge ─────────────────────────────────────────────────────
+[merge]
+    conflictstyle = zdiff3
+    tool = vscode
+    keepBackup = false
+
+[mergetool "vscode"]
+    cmd = code --wait --merge "$REMOTE" "$LOCAL" "$BASE" "$MERGED"
+    trustExitCode = true
+
+[mergetool]
+    keepBackup = false
+
+# ─── Push / Pull / Fetch ──────────────────────────────────────
+[push]
+    default = simple
+    autoSetupRemote = true
+    followTags = true
+
+[pull]
+    rebase = true
+
+[fetch]
+    prune = true
+    pruneTags = true
+    all = true
+
+# ─── Rebase ────────────────────────────────────────────────────
+[rebase]
+    autoSquash = true
+    autoStash = true
+    updateRefs = true
+
+# ─── Rerere (conflict resolution memory) ──────────────────────
+[rerere]
+    enabled = true
+    autoupdate = true
+
+# ─── Data Integrity ───────────────────────────────────────────
+[transfer]
+    fsckObjects = true
+
+[receive]
+    fsckObjects = true
+
+# ─── Sorting & Display ────────────────────────────────────────
+[column]
+    ui = auto
+
+[branch]
+    sort = -committerdate
+
+[log]
+    date = iso
+
+[color]
+    ui = auto
+
+[help]
+    autocorrect = prompt
+
+# ─── Credential ───────────────────────────────────────────────
+[credential]
+    helper = ${GIT_CREDENTIAL_HELPER}
+
+# ─── LFS ──────────────────────────────────────────────────────
+[filter "lfs"]
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    required = true
+    process = git-lfs filter-process
+
+# ─── Aliases ──────────────────────────────────────────────────
+[alias]
+    # Basics
+    st = status
+    co = checkout
+    sw = switch
+    rs = restore
+    br = branch
+    ci = commit
+    cl = clone
+
+    # Pull/Push
+    pr = pull --rebase
+    pu = push
+    pf = push --force-with-lease --force-if-includes
+
+    # Diff
+    dc = diff --cached
+    ds = diff --stat
+
+    # Log
+    lg = log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+    hist = log --pretty=format:'%h %ad | %s%d [%an]' --graph --date=short
+    ls = log --pretty=format:'%C(yellow)%h %C(blue)%ad%C(red)%d %C(reset)%s%C(green) [%cn]' --decorate --date=short
+    ll = log --oneline --graph --decorate --all
+    last = log -1 HEAD --stat
+
+    # Stash
+    sl = stash list
+    sa = stash apply
+    sp = stash pop
+    ss = stash push -u
+
+    # Fixup workflow
+    fixup = commit --fixup
+    amend = commit --amend --no-edit
+
+    # Undo
+    undo = reset HEAD~1 --mixed
+    unstage = reset HEAD --
+
+    # Info
+    aliases = config --get-regexp alias
+    whoami = !git config user.name && git config user.email
+    type = cat-file -t
+    dump = cat-file -p
+
+    # Branch cleanup (prune merged/gone branches)
+    gone = !git branch -vv | grep ': gone]' | awk '{print $1}'
+    prune-branches = !git gone | xargs -n 1 git branch -d
+
+    # Worktree
+    wt = worktree
+    wta = worktree add
+    wtl = worktree list
+    wtr = worktree remove
+
+    # Rebase helpers
+    ri = rebase -i
+    rc = rebase --continue
+    ra = rebase --abort
+
+    # Discovery
+    recent = branch --sort=-committerdate --format='%(committerdate:relative)%09%(refname:short)'
+    find = "!git log --all --pretty=format:'%h %s' --grep"
+
+    # Blame (ignore whitespace and detect moves)
+    bl = blame -w -C -C -C

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Global pre-commit hook: scan staged changes for secrets using gitleaks
+#
+# Installed by my_setup bootstrap — applies to all repositories.
+# To bypass for a specific commit: git commit --no-verify
+
+if ! command -v gitleaks &>/dev/null; then
+    exit 0
+fi
+
+gitleaks protect --staged --no-banner --redact

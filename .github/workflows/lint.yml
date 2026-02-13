@@ -1,0 +1,56 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.sh'
+      - '**/*.zshrc'
+      - '**/*.zprofile'
+      - '.github/workflows/lint.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/*.sh'
+      - '**/*.zshrc'
+      - '**/*.zprofile'
+      - '.github/workflows/lint.yml'
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run ShellCheck on scripts
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: .
+          severity: warning
+        env:
+          SHELLCHECK_OPTS: --shell=bash --exclude=SC1090,SC1091
+
+  zsh-syntax:
+    name: Zsh Syntax Check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check .zshrc syntax
+        run: zsh -n dotfiles/shell/.zshrc
+
+      - name: Check .zprofile syntax
+        run: zsh -n dotfiles/shell/.zprofile
+
+  bats-tests:
+    name: Bats Tests
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats
+        run: brew install bats-core
+
+      - name: Run tests
+        run: bats tests/

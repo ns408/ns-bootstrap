@@ -1,0 +1,6 @@
+[user]
+    name = ${GIT_NAME_WORK}
+    email = ${GIT_EMAIL_WORK}
+    signingkey = ${WORK_SIGNING_KEY}
+
+${WORK_GPG_SECTION}

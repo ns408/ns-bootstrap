@@ -1,0 +1,33 @@
+# Cloud Engineer Profile - Ubuntu packages
+# Usage: xargs -a apt-packages.cloud-engineer sudo apt install -y
+git
+vim
+tmux
+curl
+wget
+tree
+jq
+nmap
+gnupg2
+rsync
+htop
+psmisc
+make
+# Development
+build-essential
+cmake
+dos2unix
+shellcheck
+python3
+python3-pip
+python3-venv
+golang
+ruby
+# Containers (Docker installed via install-ubuntu-extras.sh from official repo)
+# Cloud & Infra (AWS CLI v2 installed via install-ubuntu-extras.sh from official binary)
+pass
+sslscan
+# Security
+qrencode
+wireguard
+openvpn
