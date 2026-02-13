@@ -13,7 +13,7 @@ jobs:
       matrix:
         profile: [minimal, developer, cloud-engineer]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check Brewfile.${{ matrix.profile }}
         run: |

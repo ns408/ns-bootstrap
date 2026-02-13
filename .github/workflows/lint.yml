@@ -21,7 +21,7 @@ jobs:
     name: ShellCheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run ShellCheck on scripts
         uses: ludeeus/action-shellcheck@2.0.0
@@ -35,7 +35,7 @@ jobs:
     name: Zsh Syntax Check
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check .zshrc syntax
         run: zsh -n dotfiles/shell/.zshrc
@@ -47,7 +47,7 @@ jobs:
     name: Bats Tests
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install bats
         run: brew install bats-core
