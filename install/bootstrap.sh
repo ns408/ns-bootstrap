@@ -139,8 +139,9 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
     if [[ "$OS" == "macos" ]]; then
         BREWFILE="${PACKAGES_DIR}/Brewfile.${PROFILE}"
         if [[ -f "$BREWFILE" ]]; then
-            log_info "Installing from ${BREWFILE}..."
-            HOMEBREW_BUNDLE_NO_LOCK=1 brew bundle --file="$BREWFILE"
+            total=$(grep -cE '^(brew|cask|mas) ' "$BREWFILE")
+            log_info "Installing ${total} packages from ${BREWFILE}..."
+            HOMEBREW_BUNDLE_NO_LOCK=1 brew bundle --file="$BREWFILE" --verbose
         else
             log_warn "Brewfile not found: ${BREWFILE}"
         fi

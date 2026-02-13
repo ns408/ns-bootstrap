@@ -92,11 +92,11 @@ log_step "Step 1: Installing secrets provider..."
 if [[ "$OS" == "macos" ]]; then
     log_info "Checking for 1Password CLI..."
     if ! command -v op &> /dev/null; then
-        log_warn "1Password CLI not found. Installing via Homebrew..."
-        if command -v brew &> /dev/null; then
+        if dseditgroup -o checkmember -m "$(whoami)" admin &>/dev/null && command -v brew &> /dev/null; then
+            log_warn "1Password CLI not found. Installing via Homebrew..."
             brew install --cask 1password-cli
         else
-            log_error "Homebrew not found. Install from: https://brew.sh"
+            log_error "1Password CLI not found. Install it from the admin account first."
             exit 1
         fi
     else
