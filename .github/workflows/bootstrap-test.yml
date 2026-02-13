@@ -1,0 +1,83 @@
+name: Bootstrap Test
+
+on:
+  schedule:
+    - cron: '0 9 1,15 * *'  # 1st and 15th of each month at 09:00 UTC (fortnightly)
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Profile to test (ubuntu only)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - minimal
+          - developer
+          - cloud-engineer
+
+jobs:
+  ubuntu-bootstrap:
+    name: Ubuntu (${{ matrix.profile }})
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [minimal, developer, cloud-engineer]
+    steps:
+      - name: Install prerequisites
+        run: |
+          apt-get update
+          apt-get install -y sudo curl git
+
+      - uses: actions/checkout@v6
+
+      - name: Create test user
+        run: |
+          useradd -m -s /bin/bash testuser
+          echo "testuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+          chown -R testuser:testuser "$GITHUB_WORKSPACE"
+
+      - name: Run bootstrap
+        run: |
+          su - testuser -c "cd $GITHUB_WORKSPACE && ./install/bootstrap.sh --profile ${{ matrix.profile }} --yes"
+        env:
+          NONINTERACTIVE: '1'
+
+      - name: Verify core tools
+        run: |
+          su - testuser -c "command -v git && command -v jq && command -v curl"
+
+      - name: Verify modern CLI tools
+        run: |
+          su - testuser -c "command -v rg && command -v fd && command -v fzf && command -v bat"
+
+      - name: Verify dotfiles symlinked
+        run: |
+          su - testuser -c "test -L ~/.vimrc && test -L ~/.inputrc && test -L ~/.gitignore_global"
+
+  macos-smoke:
+    name: macOS Smoke Test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Syntax check all shell scripts
+        run: |
+          find . -name '*.sh' -not -path './.git/*' -exec bash -n {} +
+
+      - name: Zsh syntax check
+        run: |
+          zsh -n dotfiles/shell/.zshrc
+          zsh -n dotfiles/shell/.zprofile
+
+      - name: Install bats
+        run: brew install bats-core
+
+      - name: Run unit tests
+        run: bats tests/
+
+      - name: Dry run bootstrap
+        run: ./install/bootstrap.sh --dry-run

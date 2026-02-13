@@ -12,7 +12,8 @@ _update_log_dir="${HOME}/.local/log"
 
 # --- Tier 1: Background daily (no sudo) ---
 update-brew-daily() {
-  local log="${_update_log_dir}/brew-daily-$(date +%Y%m%d).log"
+  local log
+  log="${_update_log_dir}/brew-daily-$(date +%Y%m%d).log"
   mkdir -p "$_update_log_dir"
 
   {
@@ -28,7 +29,8 @@ update-brew-daily() {
 
 # --- Tier 2: Interactive daily in tmux (may need sudo) ---
 update-my-system() {
-  local log="${_update_log_dir}/update-system-$(date +%Y%m%d).log"
+  local log
+  log="${_update_log_dir}/update-system-$(date +%Y%m%d).log"
   mkdir -p "$_update_log_dir"
 
   {

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2296
 # Smart Shell Loader
 # Sources shell functions and aliases based on OS and available tools
 # Replaces hardcoded ZSH_CUSTOM path
@@ -60,7 +61,8 @@ fi
 
 
 # === Export Path ===
-export NS_BOOTSTRAP_DIR="$(dirname "$SHELL_DIR")"
+NS_BOOTSTRAP_DIR="$(dirname "$SHELL_DIR")"
+export NS_BOOTSTRAP_DIR
 export NS_BOOTSTRAP_SHELL_DIR="$SHELL_DIR"
 
 # === Optional: Debug Info ===

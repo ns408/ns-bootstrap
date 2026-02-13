@@ -376,7 +376,8 @@ process_template() {
 
     # Backup existing file before overwriting
     if [[ -f "$output_file" ]] && [[ ! -L "$output_file" ]]; then
-        local backup_dir="${HOME}/.dotfiles-backup/$(date +%Y%m%d%H%M%S)"
+        local backup_dir
+        backup_dir="${HOME}/.dotfiles-backup/$(date +%Y%m%d%H%M%S)"
         mkdir -p "$backup_dir"
         local backup_name
         backup_name=$(basename "$output_file")

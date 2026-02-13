@@ -11,7 +11,8 @@ _update_log_dir="${HOME}/.local/log"
 
 # --- Tier 1: Background daily (needs sudo for apt) ---
 update-apt-daily() {
-  local log="${_update_log_dir}/apt-daily-$(date +%Y%m%d).log"
+  local log
+  log="${_update_log_dir}/apt-daily-$(date +%Y%m%d).log"
   mkdir -p "$_update_log_dir"
 
   {
@@ -28,7 +29,8 @@ update-apt-daily() {
 
 # --- Tier 2: Interactive daily (full system) ---
 update-my-system() {
-  local log="${_update_log_dir}/update-system-$(date +%Y%m%d).log"
+  local log
+  log="${_update_log_dir}/update-system-$(date +%Y%m%d).log"
   mkdir -p "$_update_log_dir"
 
   {

@@ -3,9 +3,10 @@
 # Supports macOS (zsh) and Ubuntu 24.04 (bash)
 #
 # Usage:
-#   ./bootstrap.sh                  # Full install (admin): packages + dotfiles + secrets
-#   ./bootstrap.sh --dotfiles-only  # Dotfiles only (non-admin): symlinks + oh-my-zsh + secrets
-#   ./bootstrap.sh --dry-run        # Preview what would be installed (no changes)
+#   ./bootstrap.sh                          # Full install (admin): packages + dotfiles + secrets
+#   ./bootstrap.sh --dotfiles-only          # Dotfiles only (non-admin): symlinks + oh-my-zsh + secrets
+#   ./bootstrap.sh --dry-run                # Preview what would be installed (no changes)
+#   ./bootstrap.sh --profile minimal --yes  # Non-interactive install (for CI)
 set -euo pipefail
 
 # Detect project root
@@ -15,19 +16,33 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Parse flags
 DOTFILES_ONLY=false
 DRY_RUN=false
+AUTO_CONFIRM=false
+PROFILE=""
+_next_is_profile=false
 for arg in "$@"; do
+    if [[ "$_next_is_profile" == true ]]; then
+        PROFILE="$arg"
+        _next_is_profile=false
+        continue
+    fi
     case "$arg" in
         --dotfiles-only) DOTFILES_ONLY=true ;;
         --dry-run) DRY_RUN=true ;;
+        --yes|-y) AUTO_CONFIRM=true ;;
+        --profile) _next_is_profile=true ;;
         --help|-h)
-            echo "Usage: $0 [--dotfiles-only] [--dry-run]"
+            echo "Usage: $0 [--dotfiles-only] [--dry-run] [--profile NAME] [--yes]"
             echo ""
-            echo "  --dotfiles-only  Skip package installation (for non-admin accounts)"
-            echo "  --dry-run        Preview what would be installed (no changes made)"
+            echo "  --dotfiles-only   Skip package installation (for non-admin accounts)"
+            echo "  --dry-run         Preview what would be installed (no changes made)"
+            echo "  --profile NAME    Set profile: minimal, developer, cloud-engineer"
+            echo "  --yes, -y         Skip confirmation prompts (for CI/automation)"
             exit 0
             ;;
     esac
 done
+# NONINTERACTIVE=1 matches Homebrew's convention
+[[ "${NONINTERACTIVE:-}" == "1" ]] && AUTO_CONFIRM=true
 
 # Source shared library
 source "${SCRIPT_DIR}/lib/common.sh"
@@ -48,23 +63,24 @@ detect_os
 log_info "Detected: ${OS} (${PKG_MGR})"
 
 if [[ "$DOTFILES_ONLY" == false ]]; then
-    [[ "$OS" == "macos" ]] && check_brew_permissions
 
     # === Step 2: Select Profile ===
-    log_step "Step 2: Select installation profile"
-    echo ""
-    echo "  1) minimal        - Essential tools (git, vim, tmux, modern CLI tools)"
-    echo "  2) developer       - Minimal + programming languages (Python, Node, Ruby, Go)"
-    echo "  3) cloud-engineer  - Developer + cloud tools (AWS, Terraform, Docker, K8s)"
-    echo ""
-    read -p "Select profile [1-3] (default: 1): " profile_choice
+    if [[ -z "$PROFILE" ]]; then
+        log_step "Step 2: Select installation profile"
+        echo ""
+        echo "  1) minimal        - Essential tools (git, vim, tmux, modern CLI tools)"
+        echo "  2) developer       - Minimal + programming languages (Python, Node, Ruby, Go)"
+        echo "  3) cloud-engineer  - Developer + cloud tools (AWS, Terraform, Docker, K8s)"
+        echo ""
+        read -p "Select profile [1-3] (default: 1): " profile_choice
 
-    case "${profile_choice:-1}" in
-        1) PROFILE="minimal" ;;
-        2) PROFILE="developer" ;;
-        3) PROFILE="cloud-engineer" ;;
-        *) PROFILE="minimal" ;;
-    esac
+        case "${profile_choice:-1}" in
+            1) PROFILE="minimal" ;;
+            2) PROFILE="developer" ;;
+            3) PROFILE="cloud-engineer" ;;
+            *) PROFILE="minimal" ;;
+        esac
+    fi
 
     log_info "Selected profile: ${PROFILE}"
 
@@ -102,7 +118,9 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         exit 0
     fi
 
-    # === Step 3: Confirm ===
+    # === Step 3: Check permissions and confirm ===
+    [[ "$OS" == "macos" ]] && check_brew_permissions
+
     echo ""
     echo -e "${YELLOW}This will:${NC}"
     echo "  - Install ${PROFILE} packages via ${PKG_MGR}"
@@ -110,8 +128,12 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
     echo "  - Symlink dotfiles (with backup of existing)"
     echo "  - Initialize secrets system"
     echo ""
-    read -p "Continue? [y/N]: " confirm
-    [[ "${confirm:-n}" != "y" ]] && { echo "Aborted."; exit 0; }
+    if [[ "$AUTO_CONFIRM" == true ]]; then
+        log_info "Auto-confirmed (--yes)"
+    else
+        read -p "Continue? [y/N]: " confirm
+        [[ "${confirm:-n}" != "y" ]] && { echo "Aborted."; exit 0; }
+    fi
 
     # === Step 4: Install Package Manager ===
     log_step "Step 3: Ensuring package manager is available..."
@@ -141,7 +163,10 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         if [[ -f "$BREWFILE" ]]; then
             total=$(grep -cE '^(brew|cask|mas) ' "$BREWFILE")
             log_info "Installing ${total} packages from ${BREWFILE}..."
-            HOMEBREW_BUNDLE_NO_LOCK=1 brew bundle --file="$BREWFILE" --verbose
+            if ! HOMEBREW_BUNDLE_NO_LOCK=1 brew bundle --file="$BREWFILE" --verbose; then
+                log_warn "Some packages failed to install."
+                log_warn "Re-run: brew bundle --file=${BREWFILE} --verbose"
+            fi
         else
             log_warn "Brewfile not found: ${BREWFILE}"
         fi
@@ -159,15 +184,25 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
     if [[ "$OS" == "macos" ]]; then
         log_info "Installing self-updating apps (will untrack from Homebrew)..."
         UNTRACK_CASKS=(
+            # Messaging (standalone installs, not in Brewfile)
             "signal"
             "whatsapp"
             "telegram"
+            # Browsers (all have built-in auto-updaters)
             "google-chrome"
             "brave-browser"
             "firefox"
+            "microsoft-edge"
+            # Apps with built-in auto-updaters
             "visual-studio-code"
             "1password"
             "docker"
+            "google-drive"
+            "slack"
+            "zoom"
+            "microsoft-teams"
+            "mullvadvpn"
+            "orbstack"
         )
         for cask in "${UNTRACK_CASKS[@]}"; do
             if ! brew list --cask "$cask" &>/dev/null 2>&1; then
@@ -364,11 +399,15 @@ log_step "Step 7: Initializing secrets system..."
 
 SECRETS_BOOTSTRAP="${PROJECT_ROOT}/secrets/bootstrap-secrets.sh"
 if [[ -f "$SECRETS_BOOTSTRAP" ]]; then
-    read -p "Run secrets bootstrap now? [y/N]: " run_secrets
-    if [[ "${run_secrets:-n}" == "y" ]]; then
-        bash "$SECRETS_BOOTSTRAP"
+    if [[ "$AUTO_CONFIRM" == true ]]; then
+        log_info "Skipping secrets in non-interactive mode. Run later: ${SECRETS_BOOTSTRAP}"
     else
-        log_info "Skipped. Run later: ${SECRETS_BOOTSTRAP}"
+        read -p "Run secrets bootstrap now? [y/N]: " run_secrets
+        if [[ "${run_secrets:-n}" == "y" ]]; then
+            bash "$SECRETS_BOOTSTRAP"
+        else
+            log_info "Skipped. Run later: ${SECRETS_BOOTSTRAP}"
+        fi
     fi
 else
     log_warn "Secrets bootstrap not found"
@@ -399,8 +438,11 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
 
                 # Load the agent (unload first if already loaded)
                 launchctl unload "$dest" 2>/dev/null || true
-                launchctl load "$dest"
-                log_info "Installed launchd agent: ${local_name}"
+                if launchctl load "$dest" 2>/dev/null; then
+                    log_info "Installed launchd agent: ${local_name}"
+                else
+                    log_warn "Failed to load ${local_name} — load manually: launchctl load ${dest}"
+                fi
             done
         else
             log_info "Skipping scheduled updates (non-admin user)"
@@ -449,9 +491,10 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
 
     if [[ "$PROFILE" == "developer" || "$PROFILE" == "cloud-engineer" ]]; then
         echo "Development tools:"
-        verify_cmd python3
-        verify_cmd node
+        verify_cmd gh
         verify_cmd go
+        verify_cmd shellcheck
+        verify_cmd mise
     fi
 
     if [[ "$PROFILE" == "cloud-engineer" ]]; then

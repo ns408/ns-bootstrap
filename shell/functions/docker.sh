@@ -34,9 +34,9 @@ docker_tags() {
   echo "$tags"
 }
 
-alias docker-pull-images="for l in nginx mysql centos postgres; do docker pull \$l; done"
-alias docker_prune_dangling="docker images | grep -i '<none>' | awk '{ print \$3 }' | xargs docker rmi"
-alias docker-update_all_images="docker images | awk '{print \$1 }' | grep -v -E \"<none>|REPOSITORY\" | xargs -L1 docker pull"
+docker-pull-images() { for l in nginx mysql centos postgres; do docker pull "$l"; done; }
+docker_prune_dangling() { docker images | grep -i '<none>' | awk '{ print $3 }' | xargs docker rmi; }
+docker-update_all_images() { docker images | awk '{print $1 }' | grep -v -E "<none>|REPOSITORY" | xargs -L1 docker pull; }
 alias docker_nuke_containers="docker ps -a -q | xargs docker rm -f"
 alias docker_nuke_images="docker images -q | xargs docker rmi -f"
 alias docker_nuke_volumes="docker volume ls -q | xargs docker volume rm"

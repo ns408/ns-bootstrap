@@ -106,8 +106,8 @@ function aws_assume_role_creds() {
 
   aws sts assume-role \
     --region ap-southeast-2 \
-    --role-arn ${ROLE_ARN} \
-    --role-session-name $(whoami)'-'$(date +%s) \
+    --role-arn "${ROLE_ARN}" \
+    --role-session-name "$(whoami)-$(date +%s)" \
     | jq -r ".Credentials|to_entries|map(\"\(.key)=\(.value|tostring)\")|.[]" \
     | sed -e 's|AccessKeyId|aws_access_key_id|' \
       -e 's|SecretAccessKey|aws_secret_access_key|' \

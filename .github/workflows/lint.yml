@@ -28,6 +28,7 @@ jobs:
         with:
           scandir: .
           severity: warning
+          ignore_paths: dotfiles/shell
         env:
           SHELLCHECK_OPTS: --shell=bash --exclude=SC1090,SC1091
 

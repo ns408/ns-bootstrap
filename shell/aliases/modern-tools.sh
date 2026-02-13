@@ -87,7 +87,7 @@ alias fvim='vim $(fd -t f | fzf)'
 alias fcode='code $(fd -t f | fzf)'
 
 # Fuzzy kill process
-alias fkill='ps aux | fzf | awk "{print \$2}" | xargs kill'
+fkill() { ps aux | fzf | awk '{print $2}' | xargs kill; }
 
 # Fuzzy git checkout branch
 alias fco='git branch | fzf | xargs git checkout'

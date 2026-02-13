@@ -20,6 +20,7 @@ log_step() { echo -e "\n${BLUE}${BOLD}==> $1${NC}"; }
 
 # === OS Detection ===
 # Sets: OS (macos|ubuntu), SHELL_NAME (zsh|bash), PKG_MGR (brew|apt)
+# shellcheck disable=SC2034  # vars used by caller (bootstrap.sh)
 detect_os() {
     if [[ "$OSTYPE" == "darwin"* ]]; then
         OS="macos"

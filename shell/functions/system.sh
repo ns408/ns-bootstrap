@@ -12,8 +12,8 @@ function generate_line() {
 Y_dirpath="${DATA_DIR}/youtube_videos"
 Y_dl='yt-dlp --user-agent Safari/537.1 --referer http://www.youtube.com/youtube?feature=inp-yo-heh'
 
-alias youtube_audio="cd $Y_dirpath && $Y_dl --audio-format mp3 -f bestaudio -x"
-alias youtube_video="cd $Y_dirpath && $Y_dl --no-playlist"
+youtube_audio() { cd "$Y_dirpath" && $Y_dl --audio-format mp3 -f bestaudio -x "$@"; }
+youtube_video() { cd "$Y_dirpath" && $Y_dl --no-playlist "$@"; }
 
 download_youtube() {
   input="$1"
@@ -31,7 +31,7 @@ function knock() {
 }
 
 check_port() {
-  if [ -z "$1" -a -z "$2" ]; then
+  if [ -z "$1" ] && [ -z "$2" ]; then
     echo -e "check_port hostname port\n"
   else
     nc -z -w5 $1 $2
@@ -103,8 +103,7 @@ function nfs_mount {
 
 # Tmux utilities
 function tmux_send_command() {
-  local acommand="$@"
-  tmux send -t system: ${acommand} ENTER
+  tmux send -t system: "$*" ENTER
 }
 
 # PDF compression

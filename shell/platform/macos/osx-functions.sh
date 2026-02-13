@@ -31,7 +31,7 @@ function mac_address_view() {
 
 function mac_address_change() {
   sudo /System/Library/PrivateFrameworks/Apple80211.framework/Resources/airport -z
-  sudo ifconfig en0 ether $(openssl rand -hex 6 | sed 's/\(..\)/\1:/g; s/./0/2; s/.$//')
+  sudo ifconfig en0 ether "$(openssl rand -hex 6 | sed 's/\(..\)/\1:/g; s/./0/2; s/.$//')"
   networksetup -detectnewhardware
 }
 
@@ -49,7 +49,7 @@ function dns_flush() {
 }
 
 function audio_reset() {
-  sudo kill -9 $(ps ax | grep 'coreaudio[a-z]' | awk '{print $1}')
+  sudo kill -9 "$(ps ax | grep 'coreaudio[a-z]' | awk '{print $1}')"
 }
 
 # Disk image creation
@@ -90,12 +90,10 @@ function google_chrome_nsjunk4() {
 }
 
 function chrome_list_profiles() {
-  SAVEIFS=$IFS
-  IFS=$(echo -en "\n\b")
-  for item in $(ls -1 "${HOME}/Library/Application Support/Google/Chrome/"*/Preferences); do
-    cat "$item" | jq -r "{ProfileName: .profile.name, ProfilePath: \"$item\"}"
+  for item in "${HOME}/Library/Application Support/Google/Chrome/"*/Preferences; do
+    [[ -f "$item" ]] || continue
+    jq -r "{ProfileName: .profile.name, ProfilePath: \"$item\"}" "$item"
   done
-  IFS=$SAVEIFS
 }
 
 # Time Machine

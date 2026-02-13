@@ -39,7 +39,7 @@ export PAGER="less -eRiXF"
 
 # Misc
 alias tzdate_utc='TZ="UTC" date'
-alias website_download="wget -rkpNl0 --mirror -p --convert-links -P \$1 \$2"
+website_download() { wget -rkpNl0 --mirror -p --convert-links -P "$1" "$2"; }
 
 # Line generator (pbcopy is macOS only)
 if command -v pbcopy &>/dev/null; then
