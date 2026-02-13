@@ -2,6 +2,18 @@
 
 Cross-platform system bootstrap for macOS (zsh) and Ubuntu 24.04 (bash).
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Profiles](#profiles)
+- [Structure](#structure)
+- [Documentation](#documentation)
+- [Secrets](#secrets)
+- [Modern CLI Tools](#modern-cli-tools)
+- [Shell](#shell)
+- [macOS Initial Setup](#macos-initial-setup)
+- [License](#license)
+
 ## Quick Start
 
 ```bash
@@ -9,6 +21,7 @@ git clone https://github.com/ns408/my_setup.git ~/my_setup
 cd ~/my_setup
 ./install/bootstrap.sh                  # Full install (admin)
 ./install/bootstrap.sh --dotfiles-only  # Dotfiles only (non-admin)
+./install/bootstrap.sh --dry-run        # Preview what would be installed
 ```
 
 ## Profiles
@@ -22,13 +35,29 @@ cd ~/my_setup
 ## Structure
 
 ```
-dotfiles/       # Config templates (.gitconfig, .zshrc, starship.toml, etc.)
-shell/          # Functions, aliases, platform-specific scripts
-packages/       # Brewfiles (macOS) and apt-packages (Ubuntu)
-install/        # Bootstrap installer and tool scripts
-secrets/        # Secrets management bootstrap
-scripts/        # Backup, migration, system maintenance
+dotfiles/          # Config templates (.gitconfig, .zshrc, starship.toml, etc.)
+shell/             # Functions, aliases, platform-specific scripts
+packages/          # Brewfiles (macOS) and apt-packages (Ubuntu)
+install/           # Bootstrap installer and tool scripts
+secrets/           # Secrets management bootstrap
+scripts/           # Scheduled updates, launchd/systemd agents
+.ai/               # Project documentation and knowledge base
+  CONTEXT.md       #   Project conventions and structure
+  knowledge/       #   Domain knowledge (macOS, shell, security, etc.)
 ```
+
+## Documentation
+
+The `.ai/` directory contains structured project documentation and domain knowledge accumulated while building this repo:
+
+| File | Topics |
+|------|--------|
+| [macos-admin.md](.ai/knowledge/macos-admin.md) | Two-account setup, launchd, Homebrew patterns, App Store CLI |
+| [shell-cross-platform.md](.ai/knowledge/shell-cross-platform.md) | Bash/zsh portability, compinit, template variables |
+| [secrets-management.md](.ai/knowledge/secrets-management.md) | 1Password structured items, pass, abstraction patterns |
+| [scheduled-updates.md](.ai/knowledge/scheduled-updates.md) | launchd/systemd timers, tmux sessions, log management |
+| [security-hardening.md](.ai/knowledge/security-hardening.md) | Git hooks, gitleaks, npm security, SSH signing |
+| [modern-cli-tools.md](.ai/knowledge/modern-cli-tools.md) | Tool migration guide, fzf/atuin/mise integration |
 
 ## Secrets
 
@@ -66,8 +95,6 @@ Run `modern-tools-help` for a full reference.
 - **Enhancements:** zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab
 
 ## macOS Initial Setup
-
-This section outlines initial setup steps specific to macOS.
 
 ### Two-Account Setup
 
@@ -117,10 +144,7 @@ update-macos-install # Manual — install macOS updates (may reboot)
 
 ### Hostname Configuration
 
-The `scutil` command is the standard and recommended way to set your Mac's hostname, computer name, and local hostname from the command line.
-
 ```bash
-# Set your desired hostname
 YOUR_HOSTNAME="my-macbook-pro-m2"
 sudo scutil --set HostName "$YOUR_HOSTNAME"
 sudo scutil --set ComputerName "$YOUR_HOSTNAME"
@@ -129,33 +153,16 @@ sudo scutil --set LocalHostName "$YOUR_HOSTNAME"
 
 ### Essential System & Developer Setup
 
-These steps are commonly performed on a new macOS machine, especially for development.
+- **Update macOS:** `sudo softwareupdate -i -a --restart`
+- **Xcode CLI Tools:** `xcode-select --install`
+- **Trackpad/Mouse:** Adjust tracking speed, tap to click, natural scrolling
+- **Keyboard:** Set key repeat rate, enable Full Keyboard Access
+- **Finder:** Show all extensions and hidden files (`Cmd+Shift+.`)
+- **Clear Dock:** `defaults write "com.apple.dock" "persistent-apps" -array && killall Dock`
+- **Enable Firewall:** `sudo defaults write /Library/Preferences/com.apple.alf globalstate -int 1`
+- **Enable FileVault:** `sudo fdesetup enable`
+- **Disable Homebrew Analytics:** `brew analytics off`
 
-- **Update macOS:** Ensure your system is running the latest available updates.
-  ```bash
-  sudo softwareupdate -i -a --restart
-  ```
-- **Install Xcode Command Line Tools:** Required for many development utilities.
-  ```bash
-  xcode-select --install
-  ```
-- **Adjust Trackpad/Mouse Settings:** Personalize tracking speed, tap to click, and natural scrolling.
-- **Configure Keyboard Settings:** Set key repeat rate, delay until repeat, and review modifier keys. Consider enabling "Full Keyboard Access" for easier navigation.
-- **Finder Preferences:** Enable showing all filename extensions and hidden files (`Cmd+Shift+.` toggles hidden files). Set new Finder windows to open to your Home directory or Downloads.
-- **Clear Dock:** Remove default apps from the Dock for a clean start.
-  ```bash
-  defaults write "com.apple.dock" "persistent-apps" -array && killall Dock
-  ```
-- **Enable Firewall:** Enhance security by enabling the built-in macOS firewall.
-  ```bash
-  sudo defaults write /Library/Preferences/com.apple.alf globalstate -int 1
-  ```
-- **Enable FileVault:** Encrypt your startup disk for data protection (already mentioned, reinforcing).
-  ```bash
-  sudo fdesetup enable
-  ```
-- **Disable Homebrew Analytics:** Prevent Homebrew from sending anonymous usage data.
-  ```bash
-  brew analytics off
-  ```
+## License
 
+[MIT](LICENSE)

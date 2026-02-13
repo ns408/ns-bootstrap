@@ -5,6 +5,7 @@
 # Usage:
 #   ./bootstrap.sh                  # Full install (admin): packages + dotfiles + secrets
 #   ./bootstrap.sh --dotfiles-only  # Dotfiles only (non-admin): symlinks + oh-my-zsh + secrets
+#   ./bootstrap.sh --dry-run        # Preview what would be installed (no changes)
 set -euo pipefail
 
 # Detect project root
@@ -13,13 +14,16 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Parse flags
 DOTFILES_ONLY=false
+DRY_RUN=false
 for arg in "$@"; do
     case "$arg" in
         --dotfiles-only) DOTFILES_ONLY=true ;;
+        --dry-run) DRY_RUN=true ;;
         --help|-h)
-            echo "Usage: $0 [--dotfiles-only]"
+            echo "Usage: $0 [--dotfiles-only] [--dry-run]"
             echo ""
             echo "  --dotfiles-only  Skip package installation (for non-admin accounts)"
+            echo "  --dry-run        Preview what would be installed (no changes made)"
             exit 0
             ;;
     esac
@@ -63,6 +67,40 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
     esac
 
     log_info "Selected profile: ${PROFILE}"
+
+    # === Dry Run Preview ===
+    if [[ "$DRY_RUN" == true ]]; then
+        echo ""
+        echo -e "${BOLD}=== Dry Run Preview ===${NC}"
+        echo ""
+        echo "OS:       ${OS} (${PKG_MGR})"
+        echo "Profile:  ${PROFILE}"
+        echo ""
+        echo "Would install:"
+        if [[ "$OS" == "macos" ]]; then
+            BREWFILE="${PROJECT_ROOT}/packages/Brewfile.${PROFILE}"
+            [[ -f "$BREWFILE" ]] && echo "  Brewfile: ${BREWFILE} ($(grep -cE '^(brew|cask|mas) ' "$BREWFILE") packages)"
+        else
+            APT_FILE="${PROJECT_ROOT}/packages/apt-packages.${PROFILE}"
+            [[ -f "$APT_FILE" ]] && echo "  apt packages: ${APT_FILE} ($(wc -l < "$APT_FILE") packages)"
+        fi
+        echo "  Modern CLI tools via install-modern-tools.sh"
+        echo ""
+        echo "Would symlink:"
+        for f in .zshrc .zprofile .vimrc .inputrc .gitignore_global .tmux.conf .config/starship.toml .npmrc .config/atuin/config.toml; do
+            src="${PROJECT_ROOT}/dotfiles"
+            echo "  ~/${f}"
+        done
+        echo ""
+        echo "Would configure:"
+        echo "  oh-my-zsh + custom plugins"
+        echo "  Secrets system (1Password / pass)"
+        echo "  Scheduled update agents (launchd / systemd)"
+        echo "  Global git hooks (gitleaks pre-commit)"
+        echo ""
+        echo -e "${GREEN}No changes were made.${NC}"
+        exit 0
+    fi
 
     # === Step 3: Confirm ===
     echo ""
@@ -165,6 +203,25 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
     fi
 else
     PROFILE="dotfiles-only"
+    if [[ "$DRY_RUN" == true ]]; then
+        echo ""
+        echo -e "${BOLD}=== Dry Run Preview (dotfiles-only) ===${NC}"
+        echo ""
+        echo "OS: ${OS}"
+        echo ""
+        echo "Would symlink:"
+        for f in .zshrc .zprofile .vimrc .inputrc .gitignore_global .tmux.conf .config/starship.toml .npmrc .config/atuin/config.toml; do
+            echo "  ~/${f}"
+        done
+        echo ""
+        echo "Would configure:"
+        echo "  oh-my-zsh + custom plugins"
+        echo "  Secrets system (1Password / pass)"
+        echo "  Global git hooks (gitleaks pre-commit)"
+        echo ""
+        echo -e "${GREEN}No changes were made.${NC}"
+        exit 0
+    fi
     log_info "Dotfiles-only mode: skipping package installation"
 fi
 
