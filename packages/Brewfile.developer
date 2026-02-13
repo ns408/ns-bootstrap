@@ -70,6 +70,7 @@ brew "go"
 
 # GUI apps (minimal + dev-specific)
 cask "1password"
+cask "1password-cli"
 cask "brave-browser"
 cask "docker"
 cask "drawio"
