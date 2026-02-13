@@ -26,8 +26,8 @@ Install with `sed` substitution:
 ```bash
 sed -e "s|\${PROJECT_ROOT}|${PROJECT_ROOT}|g" \
     -e "s|\${HOME}|${HOME}|g" \
-    template.plist > ~/Library/LaunchAgents/com.my_setup.update.plist
-launchctl load ~/Library/LaunchAgents/com.my_setup.update.plist
+    template.plist > ~/Library/LaunchAgents/com.ns-bootstrap.update.plist
+launchctl load ~/Library/LaunchAgents/com.ns-bootstrap.update.plist
 ```
 
 Key behaviors:

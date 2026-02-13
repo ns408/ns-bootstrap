@@ -27,7 +27,7 @@ get_secret() {
 Instead of creating many separate password items, use a single **Secure Note** with sections:
 
 ```
-Item: "my_setup" (Secure Note)
+Item: "ns-bootstrap" (Secure Note)
 ├── Git Personal
 │   ├── name
 │   ├── email
@@ -41,25 +41,25 @@ Item: "my_setup" (Secure Note)
     └── mac_address
 ```
 
-Read a specific field: `op read "op://Vault/my_setup/Git Personal/email"`
+Read a specific field: `op read "op://Vault/ns-bootstrap/Git Personal/email"`
 
-Tag managed items: `--tags "managed:my_setup"` + notes field explaining the item is auto-managed.
+Tag managed items: `--tags "managed:ns-bootstrap"` + notes field explaining the item is auto-managed.
 
 ### Structured Item CRUD
 
 ```bash
 # Create
-op item create --category="Secure Note" --title="my_setup" --vault="Personal" \
+op item create --category="Secure Note" --title="ns-bootstrap" --vault="Personal" \
     "Git Personal.name[text]=John" "Git Personal.email[text]=john@example.com"
 
 # Update
-op item edit "my_setup" --vault="Personal" "Git Personal.name[text]=Jane"
+op item edit "ns-bootstrap" --vault="Personal" "Git Personal.name[text]=Jane"
 
 # Read
-op read "op://Personal/my_setup/Git Personal/name"
+op read "op://Personal/ns-bootstrap/Git Personal/name"
 
 # Check existence
-op item get "my_setup" --vault="Personal" &>/dev/null
+op item get "ns-bootstrap" --vault="Personal" &>/dev/null
 ```
 
 ## Non-Secret Config
@@ -67,7 +67,7 @@ op item get "my_setup" --vault="Personal" &>/dev/null
 Machine-specific settings that aren't secrets (data directories, tool paths) belong in `~/.config/<app>/config`, not in a secrets manager:
 
 ```bash
-# ~/.config/my_setup/config
+# ~/.config/ns-bootstrap/config
 export DATA_DIR="/Users/Shared/data"
 export OP_SSH_SIGN_PATH="/Applications/1Password.app/Contents/MacOS/op-ssh-sign"
 ```
@@ -82,8 +82,8 @@ gpg --gen-key
 pass init <gpg-key-id>
 
 # Structured paths
-pass insert my_setup/git-personal/name
-pass show my_setup/git-personal/name
+pass insert ns-bootstrap/git-personal/name
+pass show ns-bootstrap/git-personal/name
 ```
 
 ## Never Eager-Load Secrets

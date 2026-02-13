@@ -9,7 +9,7 @@ if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
 elif [[ -n "${(%):-%x}" ]]; then
     SHELL_DIR="$(cd "$(dirname "${(%):-%x}")" && pwd)"
 else
-    SHELL_DIR="${MY_SETUP_DIR:-$HOME/my_setup}/shell"
+    SHELL_DIR="${NS_BOOTSTRAP_DIR:-$HOME/ns-bootstrap}/shell"
 fi
 
 # Detect OS
@@ -32,7 +32,7 @@ fi
 
 # === Load Machine Config ===
 # Non-secret, machine-specific settings (DATA_DIR, OP_SSH_SIGN_PATH, etc.)
-[[ -f "${HOME}/.config/my_setup/config" ]] && source "${HOME}/.config/my_setup/config"
+[[ -f "${HOME}/.config/ns-bootstrap/config" ]] && source "${HOME}/.config/ns-bootstrap/config"
 
 # === Load Functions ===
 
@@ -60,12 +60,12 @@ fi
 
 
 # === Export Path ===
-export MY_SETUP_DIR="$(dirname "$SHELL_DIR")"
-export MY_SETUP_SHELL_DIR="$SHELL_DIR"
+export NS_BOOTSTRAP_DIR="$(dirname "$SHELL_DIR")"
+export NS_BOOTSTRAP_SHELL_DIR="$SHELL_DIR"
 
 # === Optional: Debug Info ===
 # Uncomment for troubleshooting
 # echo "Shell loader initialized:"
 # echo "  OS: $SHELL_OS"
 # echo "  Shell dir: $SHELL_DIR"
-# echo "  Setup dir: $MY_SETUP_DIR"
+# echo "  Setup dir: $NS_BOOTSTRAP_DIR"

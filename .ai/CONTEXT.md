@@ -1,4 +1,4 @@
-# Project Context — my_mac_setup
+# Project Context — ns-bootstrap
 
 This is a cross-platform system bootstrap for macOS and Ubuntu 24.04.
 It manages dotfiles, shell configuration, package installation, and secrets.

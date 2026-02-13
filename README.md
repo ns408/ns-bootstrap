@@ -1,4 +1,4 @@
-# my_setup
+# ns-bootstrap
 
 Cross-platform system bootstrap for macOS (zsh) and Ubuntu 24.04 (bash).
 
@@ -17,8 +17,8 @@ Cross-platform system bootstrap for macOS (zsh) and Ubuntu 24.04 (bash).
 ## Quick Start
 
 ```bash
-git clone https://github.com/ns408/my_setup.git ~/my_setup
-cd ~/my_setup
+git clone https://github.com/ns408/ns-bootstrap.git ~/ns-bootstrap
+cd ~/ns-bootstrap
 ./install/bootstrap.sh                  # Full install (admin)
 ./install/bootstrap.sh --dotfiles-only  # Dotfiles only (non-admin)
 ./install/bootstrap.sh --dry-run        # Preview what would be installed

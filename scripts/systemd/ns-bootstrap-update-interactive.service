@@ -1,0 +1,6 @@
+[Unit]
+Description=ns-bootstrap daily interactive update (tmux)
+
+[Service]
+Type=oneshot
+ExecStart=%h/ns-bootstrap/scripts/scheduled-update-interactive.sh

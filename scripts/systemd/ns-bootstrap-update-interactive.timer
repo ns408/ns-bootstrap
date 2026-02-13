@@ -1,5 +1,5 @@
 [Unit]
-Description=Run my_setup daily interactive update
+Description=Run ns-bootstrap daily interactive update
 
 [Timer]
 OnCalendar=*-*-* 07:30:00

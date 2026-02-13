@@ -2,15 +2,15 @@
 # Unified Secrets Management Abstraction Layer
 # Provides cross-platform secrets retrieval from multiple providers
 #
-# 1Password storage: Single "my_setup" secure note with sections
-#   Read:  op read "op://Personal/my_setup/SECTION/FIELD"
-#   Item:  op item get "my_setup" --vault=Personal
+# 1Password storage: Single "ns-bootstrap" secure note with sections
+#   Read:  op read "op://Personal/ns-bootstrap/SECTION/FIELD"
+#   Item:  op item get "ns-bootstrap" --vault=Personal
 #
-# pass storage: Structured paths under my_setup/
-#   Read:  pass show "my_setup/section/field"
+# pass storage: Structured paths under ns-bootstrap/
+#   Read:  pass show "ns-bootstrap/section/field"
 
 # 1Password item configuration (must match bootstrap-secrets.sh)
-_OP_ITEM_NAME="my_setup"
+_OP_ITEM_NAME="ns-bootstrap"
 _OP_VAULT="Personal"
 
 # === Main Functions ===
@@ -174,7 +174,7 @@ _get_secret_1password() {
     local secret_name="$1"
     local secret_value
 
-    # Try structured item first (op://vault/my_setup/section/field)
+    # Try structured item first (op://vault/ns-bootstrap/section/field)
     # Map common secret names to structured paths
     local op_path
     op_path=$(_map_secret_to_op_path "$secret_name")
@@ -242,9 +242,9 @@ _set_secret_1password() {
                 --category="Secure Note" \
                 --title="$_OP_ITEM_NAME" \
                 --vault="$_OP_VAULT" \
-                --tags="managed:my_setup" \
+                --tags="managed:ns-bootstrap" \
                 "${section_field}=${secret_value}" \
-                --notes="Managed by my_setup bootstrap-secrets.sh." \
+                --notes="Managed by ns-bootstrap bootstrap-secrets.sh." \
                 >/dev/null 2>/dev/null
         fi
     else
@@ -258,7 +258,7 @@ _set_secret_1password() {
     fi
 }
 
-# pass (password-store) — structured paths under my_setup/
+# pass (password-store) — structured paths under ns-bootstrap/
 _get_secret_pass() {
     local secret_name="$1"
     local pass_path
@@ -287,15 +287,15 @@ _set_secret_pass() {
 _map_secret_to_pass_path() {
     local name="$1"
     case "$name" in
-        git/name-personal)          echo "my_setup/git-personal/name" ;;
-        git/email-personal)         echo "my_setup/git-personal/email" ;;
-        git/signing-key)            echo "my_setup/git-personal/signing-key" ;;
-        git/name-work)              echo "my_setup/git-work/name" ;;
-        git/email-work)             echo "my_setup/git-work/email" ;;
-        git/work-signing-key)       echo "my_setup/git-work/signing-key" ;;
-        git/work-repo-dir)          echo "my_setup/git-work/repo-dir" ;;
-        homebrew/github-token)      echo "my_setup/tokens/homebrew-github" ;;
-        network/*)                  echo "my_setup/network/backup-password" ;;
+        git/name-personal)          echo "ns-bootstrap/git-personal/name" ;;
+        git/email-personal)         echo "ns-bootstrap/git-personal/email" ;;
+        git/signing-key)            echo "ns-bootstrap/git-personal/signing-key" ;;
+        git/name-work)              echo "ns-bootstrap/git-work/name" ;;
+        git/email-work)             echo "ns-bootstrap/git-work/email" ;;
+        git/work-signing-key)       echo "ns-bootstrap/git-work/signing-key" ;;
+        git/work-repo-dir)          echo "ns-bootstrap/git-work/repo-dir" ;;
+        homebrew/github-token)      echo "ns-bootstrap/tokens/homebrew-github" ;;
+        network/*)                  echo "ns-bootstrap/network/backup-password" ;;
         *)                          echo "" ;;
     esac
 }

@@ -1,0 +1,6 @@
+[Unit]
+Description=ns-bootstrap daily background update (apt)
+
+[Service]
+Type=oneshot
+ExecStart=%h/ns-bootstrap/scripts/scheduled-update-daily.sh

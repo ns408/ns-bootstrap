@@ -37,7 +37,7 @@ function mac_address_change() {
 
 function mac_address_reset() {
   if [[ -z "${MAC_ADDRESS:-}" ]]; then
-    echo "No stored MAC address found. Add it to ~/.config/my_setup/config:"
+    echo "No stored MAC address found. Add it to ~/.config/ns-bootstrap/config:"
     echo "  MAC_ADDRESS=\"aa:bb:cc:dd:ee:ff\""
     return 1
   fi

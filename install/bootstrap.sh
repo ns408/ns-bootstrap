@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Main Bootstrap Installer for my_setup
+# Main Bootstrap Installer for ns-bootstrap
 # Supports macOS (zsh) and Ubuntu 24.04 (bash)
 #
 # Usage:
@@ -35,9 +35,9 @@ source "${SCRIPT_DIR}/lib/common.sh"
 echo ""
 echo -e "${BOLD}╔═══════════════════════════════════════╗${NC}"
 if [[ "$DOTFILES_ONLY" == true ]]; then
-    echo -e "${BOLD}║   my_setup - Dotfiles Bootstrap       ║${NC}"
+    echo -e "${BOLD}║   ns-bootstrap - Dotfiles Bootstrap       ║${NC}"
 else
-    echo -e "${BOLD}║     my_setup - System Bootstrap       ║${NC}"
+    echo -e "${BOLD}║     ns-bootstrap - System Bootstrap       ║${NC}"
 fi
 echo -e "${BOLD}╚═══════════════════════════════════════╝${NC}"
 echo ""
@@ -423,8 +423,8 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         done
 
         systemctl --user daemon-reload
-        systemctl --user enable --now my-setup-update-daily.timer 2>/dev/null || true
-        systemctl --user enable --now my-setup-update-interactive.timer 2>/dev/null || true
+        systemctl --user enable --now ns-bootstrap-update-daily.timer 2>/dev/null || true
+        systemctl --user enable --now ns-bootstrap-update-interactive.timer 2>/dev/null || true
         log_info "Enabled systemd update timers"
     fi
 fi

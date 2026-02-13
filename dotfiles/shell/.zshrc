@@ -104,8 +104,8 @@ fi
 alias g=git
 alias rzsh='arch -x86_64 zsh'
 
-# ─── Load my_setup shell functions & aliases ───────────────────
-[[ -f "${MY_SETUP_DIR:-$HOME/my_setup}/shell/loader.sh" ]] && source "${MY_SETUP_DIR:-$HOME/my_setup}/shell/loader.sh"
+# ─── Load ns-bootstrap shell functions & aliases ───────────────────
+[[ -f "${NS_BOOTSTRAP_DIR:-$HOME/ns-bootstrap}/shell/loader.sh" ]] && source "${NS_BOOTSTRAP_DIR:-$HOME/ns-bootstrap}/shell/loader.sh"
 
 # ─── Zoxide (smart cd) ──────────────────────────────────────────
 command -v zoxide &>/dev/null && eval "$(zoxide init zsh)"

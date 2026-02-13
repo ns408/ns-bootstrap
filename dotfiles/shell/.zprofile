@@ -9,8 +9,8 @@ else
 fi
 
 # ─── Setup Directory ──────────────────────────────────────────
-# Points to the my_setup repo. Override in ~/.zshenv if cloned elsewhere.
-export MY_SETUP_DIR="${MY_SETUP_DIR:-${HOME}/my_setup}"
+# Points to the ns-bootstrap repo. Override in ~/.zshenv if cloned elsewhere.
+export NS_BOOTSTRAP_DIR="${NS_BOOTSTRAP_DIR:-${HOME}/ns-bootstrap}"
 
 # ─── Environment Variables ─────────────────────────────────────
 export EDITOR="code --wait"

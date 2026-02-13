@@ -1,6 +1,0 @@
-[Unit]
-Description=my_setup daily interactive update (tmux)
-
-[Service]
-Type=oneshot
-ExecStart=%h/my_setup/scripts/scheduled-update-interactive.sh

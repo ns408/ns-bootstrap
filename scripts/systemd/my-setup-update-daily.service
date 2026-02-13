@@ -1,6 +1,0 @@
-[Unit]
-Description=my_setup daily background update (apt)
-
-[Service]
-Type=oneshot
-ExecStart=%h/my_setup/scripts/scheduled-update-daily.sh

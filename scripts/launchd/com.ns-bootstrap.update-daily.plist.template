@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.my_setup.update-daily</string>
+    <string>com.ns-bootstrap.update-daily</string>
 
     <key>ProgramArguments</key>
     <array>
