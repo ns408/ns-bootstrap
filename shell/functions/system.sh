@@ -92,7 +92,7 @@ function activate_venv {
 function mount_ext {
   local MNT_DIR="${DATA_DIR}/mnt"
   test -d "$MNT_DIR" || mkdir -p "$MNT_DIR"
-  sudo /usr/local/bin/fuse-ext2 -o ro "$1" "$MNT_DIR"
+  sudo "$(brew --prefix 2>/dev/null || echo /opt/homebrew)/bin/fuse-ext2" -o ro "$1" "$MNT_DIR"
 }
 
 # NFS mount

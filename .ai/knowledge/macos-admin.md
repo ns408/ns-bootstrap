@@ -18,8 +18,8 @@ Check admin membership: `dseditgroup -o checkmember -m "$(whoami)" admin`
 
 - `HOMEBREW_BUNDLE_NO_LOCK=1 brew bundle` — prevents lockfile generation
 - `brew analytics off` — disable anonymous usage tracking
-- Homebrew prefix differs by architecture: `/opt/homebrew` (arm64) vs `/usr/local` (x86_64)
-- Detect at runtime: `$(brew --prefix)` or check `$(arch)`
+- Homebrew prefix: `/opt/homebrew` (Apple Silicon only — Intel/Rosetta not supported)
+- Detect at runtime: `$(brew --prefix)`
 
 ### Self-Updating Cask Pattern
 

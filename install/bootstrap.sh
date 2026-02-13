@@ -122,11 +122,7 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
             # Add to PATH for current session
-            if [ "$(arch)" = "arm64" ]; then
-                eval "$(/opt/homebrew/bin/brew shellenv)"
-            else
-                eval "$(/usr/local/bin/brew shellenv)"
-            fi
+            eval "$(/opt/homebrew/bin/brew shellenv)"
         else
             log_info "Homebrew already installed"
         fi
@@ -293,17 +289,15 @@ if [[ -f "${PROJECT_ROOT}/dotfiles/vim/.vimrc" ]]; then
     VIM_PACK="${HOME}/.vim/pack/plugins/start"
     mkdir -p "$VIM_PACK"
 
-    declare -A VIM_PLUGINS=(
-        [fzf.vim]="https://github.com/junegunn/fzf.vim"
-        [vim-ruby]="https://github.com/vim-ruby/vim-ruby"
-    )
+    vim_plugins="fzf.vim=https://github.com/junegunn/fzf.vim
+vim-ruby=https://github.com/vim-ruby/vim-ruby"
 
-    for plugin in "${!VIM_PLUGINS[@]}"; do
+    while IFS='=' read -r plugin url; do
         if [[ ! -d "${VIM_PACK}/${plugin}" ]]; then
             log_info "Installing vim plugin: ${plugin}..."
-            git clone --quiet "${VIM_PLUGINS[$plugin]}" "${VIM_PACK}/${plugin}"
+            git clone --quiet "$url" "${VIM_PACK}/${plugin}"
         fi
-    done
+    done <<< "$vim_plugins"
 fi
 
 # Inputrc
@@ -349,21 +343,19 @@ if [[ -d "${HOME}/.oh-my-zsh" ]]; then
     ZSH_CUSTOM="${HOME}/.oh-my-zsh/custom"
     log_info "Installing oh-my-zsh custom plugins..."
 
-    declare -A OMZ_PLUGINS=(
-        [zsh-autosuggestions]="https://github.com/zsh-users/zsh-autosuggestions"
-        [zsh-syntax-highlighting]="https://github.com/zsh-users/zsh-syntax-highlighting"
-        [zsh-completions]="https://github.com/zsh-users/zsh-completions"
-        [fzf-tab]="https://github.com/Aloxaf/fzf-tab"
-    )
+    omz_plugins="zsh-autosuggestions=https://github.com/zsh-users/zsh-autosuggestions
+zsh-syntax-highlighting=https://github.com/zsh-users/zsh-syntax-highlighting
+zsh-completions=https://github.com/zsh-users/zsh-completions
+fzf-tab=https://github.com/Aloxaf/fzf-tab"
 
-    for plugin in "${!OMZ_PLUGINS[@]}"; do
+    while IFS='=' read -r plugin url; do
         if [[ ! -d "${ZSH_CUSTOM}/plugins/${plugin}" ]]; then
             log_info "  Cloning ${plugin}..."
-            git clone --quiet "${OMZ_PLUGINS[$plugin]}" "${ZSH_CUSTOM}/plugins/${plugin}"
+            git clone --quiet "$url" "${ZSH_CUSTOM}/plugins/${plugin}"
         else
             log_info "  ${plugin} already installed"
         fi
-    done
+    done <<< "$omz_plugins"
 fi
 
 # === Step 8: Initialize Secrets ===

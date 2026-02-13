@@ -61,5 +61,5 @@ function mysql_connect_tunneled() {
 # Vagrant
 alias vagrant_refresh_plugins="vagrant plugin repair"
 
-# MySQL client path
-[[ -d "/usr/local/opt/mysql-client/bin" ]] && export PATH="/usr/local/opt/mysql-client/bin:$PATH"
+# MySQL client path (Homebrew on Apple Silicon)
+[[ -d "/opt/homebrew/opt/mysql-client/bin" ]] && export PATH="/opt/homebrew/opt/mysql-client/bin:$PATH"
