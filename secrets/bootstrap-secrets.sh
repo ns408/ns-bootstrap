@@ -289,7 +289,7 @@ if [[ "$PROVIDER" == "1password" ]]; then
             --vault="$OP_VAULT" \
             --tags="$OP_TAG" \
             "${OP_FIELDS[@]}" \
-            --notes="Managed by ns-bootstrap bootstrap-secrets.sh. Do not modify manually — re-run secrets/bootstrap-secrets.sh to update." \
+            "notesPlain=Managed by ns-bootstrap bootstrap-secrets.sh. Do not modify manually — re-run secrets/bootstrap-secrets.sh to update." \
             >/dev/null
     fi
     log_info "1Password item stored: $OP_ITEM_NAME (vault: $OP_VAULT)"

@@ -25,7 +25,6 @@ plugins=(
   direnv                    # Direnv hook
   extract                   # Universal archive extraction
   copybuffer                # Ctrl+O copies command line to clipboard
-  ssh-agent                 # Auto-start SSH agent
 )
 
 source "${ZSH}/oh-my-zsh.sh"

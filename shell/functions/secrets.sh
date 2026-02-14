@@ -244,7 +244,7 @@ _set_secret_1password() {
                 --vault="$_OP_VAULT" \
                 --tags="managed:ns-bootstrap" \
                 "${section_field}=${secret_value}" \
-                --notes="Managed by ns-bootstrap bootstrap-secrets.sh." \
+                "notesPlain=Managed by ns-bootstrap bootstrap-secrets.sh." \
                 >/dev/null 2>/dev/null
         fi
     else
