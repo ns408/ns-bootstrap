@@ -10,7 +10,7 @@ $cmd_duration$line_break$character"""
 
 # Performance
 scan_timeout = 30
-command_timeout = 500
+command_timeout = 2000
 
 [character]
 success_symbol = '[>](bold green)'
