@@ -27,18 +27,14 @@ docker_tags() {
   local image="$1"
   local filter="${2:-}"
   local tags
-  tags=$(curl -sL "https://hub.docker.com/v2/repositories/library/${image}/tags?page_size=100" | jq -r '.results[].name')
+  tags=$(skopeo list-tags "docker://docker.io/library/${image}" | jq -r '.Tags[]')
   if [[ -n "$filter" ]]; then
     tags=$(echo "$tags" | grep "$filter")
   fi
   echo "$tags"
 }
 
-docker-pull-images() { for l in nginx mysql centos postgres; do docker pull "$l"; done; }
-docker_prune_dangling() { docker images | grep -i '<none>' | awk '{ print $3 }' | xargs docker rmi; }
-docker-update_all_images() { docker images | awk '{print $1 }' | grep -v -E "<none>|REPOSITORY" | xargs -L1 docker pull; }
-alias docker_nuke_containers="docker ps -a -q | xargs docker rm -f"
-alias docker_nuke_images="docker images -q | xargs docker rmi -f"
-alias docker_nuke_volumes="docker volume ls -q | xargs docker volume rm"
-alias docker_nuke_all="docker_nuke_images; (docker_nuke_containers || docker_nuke_containers); docker_nuke_volumes"
+# Cleanup — uses built-in Docker prune (safer, supports filters)
+alias docker_prune="docker system prune -f"
+alias docker_nuke="docker system prune -a --volumes -f"
 alias docker_ami='docker run -it amazonlinux:latest /bin/bash'

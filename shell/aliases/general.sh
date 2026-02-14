@@ -58,8 +58,5 @@ function mysql_connect_tunneled() {
   mysql --host=127.0.0.1 --port="${1}" -u "${2}" -p
 }
 
-# Vagrant
-alias vagrant_refresh_plugins="vagrant plugin repair"
-
 # MySQL client path (Homebrew on Apple Silicon)
 [[ -d "/opt/homebrew/opt/mysql-client/bin" ]] && export PATH="/opt/homebrew/opt/mysql-client/bin:$PATH"

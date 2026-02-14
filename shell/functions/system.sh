@@ -38,16 +38,10 @@ check_port() {
   fi
 }
 
-# Password generation
+# Password generation (requires: brew install pwgen)
 genpass() {
   local l="${1:-32}"
-  tr -dc 'A-Za-z0-9_!@#$%' < /dev/urandom | head -c "$l"
-  echo
-}
-
-gen_pass() {
-  local l="${1:-32}"
-  openssl rand -base64 "$l"
+  pwgen -sy "$l" 1
 }
 
 # Find all images
@@ -72,9 +66,11 @@ function ssl_test_tls1.2 {
   openssl s_client -connect ${host}:${port} -tls1_2
 }
 
-# YAML validation
+# YAML validation (syntax + style)
 yaml_check() {
-  if command -v yq &>/dev/null; then
+  if command -v yamllint &>/dev/null; then
+    yamllint "$1"
+  elif command -v yq &>/dev/null; then
     yq eval '.' "$1" > /dev/null
   else
     python3 -c "import yaml; yaml.safe_load(open('$1'))"
