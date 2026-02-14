@@ -105,6 +105,7 @@ alias g=git
 alias rzsh='arch -x86_64 zsh'
 
 # ─── Load ns-bootstrap shell functions & aliases ───────────────────
+[[ -f "${HOME}/.config/ns-bootstrap/config" ]] && source "${HOME}/.config/ns-bootstrap/config"
 [[ -f "${NS_BOOTSTRAP_DIR:-$HOME/ns-bootstrap}/shell/loader.sh" ]] && source "${NS_BOOTSTRAP_DIR:-$HOME/ns-bootstrap}/shell/loader.sh"
 
 # ─── Zoxide (smart cd) ──────────────────────────────────────────
