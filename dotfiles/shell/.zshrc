@@ -36,8 +36,8 @@ setopt AUTO_CD AUTO_PUSHD PUSHD_IGNORE_DUPS PUSHD_SILENT
 # Globbing
 setopt EXTENDED_GLOB NO_CASE_GLOB NUMERIC_GLOB_SORT
 
-# Correction disabled — autosuggestions and syntax highlighting make it redundant
-# setopt CORRECT
+# Correction
+setopt CORRECT
 
 # Jobs
 setopt LONG_LIST_JOBS NO_BG_NICE
