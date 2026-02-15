@@ -13,6 +13,7 @@ rsync
 htop
 psmisc
 make
+unzip
 # Modern CLI tools
 ripgrep
 fd-find

@@ -457,7 +457,7 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
             log_info "Installed systemd unit: $(basename "$unit")"
         done
 
-        systemctl --user daemon-reload
+        systemctl --user daemon-reload 2>/dev/null || true
         systemctl --user enable --now ns-bootstrap-update-daily.timer 2>/dev/null || true
         systemctl --user enable --now ns-bootstrap-update-interactive.timer 2>/dev/null || true
         log_info "Enabled systemd update timers"
