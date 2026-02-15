@@ -174,7 +174,7 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         APT_FILE="${PACKAGES_DIR}/apt-packages.${PROFILE}"
         if [[ -f "$APT_FILE" ]]; then
             log_info "Installing from ${APT_FILE}..."
-            xargs -a "$APT_FILE" sudo apt install -y
+            grep -v '^\s*#' "$APT_FILE" | grep -v '^\s*$' | xargs sudo apt install -y
         else
             log_warn "Package list not found: ${APT_FILE}"
         fi
