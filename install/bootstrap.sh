@@ -257,7 +257,7 @@ else
     log_info "Dotfiles-only mode: skipping package installation"
 fi
 
-# === Global git hooks (gitleaks pre-commit) ===
+# === Global git hooks (secrets scan + AI trailer stripping) ===
 HOOKS_SRC="${PROJECT_ROOT}/dotfiles/git/hooks"
 HOOKS_DEST="${HOME}/.config/git/hooks"
 if [[ -d "$HOOKS_SRC" ]]; then

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Global commit-msg hook: strip AI-generated Co-Authored-By trailers
+# Covers: Claude, Copilot, GPT, OpenAI, Anthropic, Gemini, Codeium, Cursor, Windsurf
+#
+# Installed by ns-bootstrap — applies to all repositories.
+
+msg_file="$1"
+
+if grep -qiE '^Co-Authored-By:.*(Claude|Copilot|GPT|OpenAI|Anthropic|Gemini|Codeium|Cursor|Windsurf)' "$msg_file"; then
+    grep -ivE '^Co-Authored-By:.*(Claude|Copilot|GPT|OpenAI|Anthropic|Gemini|Codeium|Cursor|Windsurf)' "$msg_file" > "${msg_file}.tmp" || true
+    # Remove trailing blank lines (portable across macOS and Linux)
+    awk '/^[[:space:]]*$/ { blank = blank "\n"; next } { printf "%s%s\n", blank, $0; blank = "" }' "${msg_file}.tmp" > "$msg_file"
+    rm -f "${msg_file}.tmp"
+fi

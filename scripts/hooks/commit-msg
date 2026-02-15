@@ -10,3 +10,7 @@ grep -ivE '^Co-Authored-By:.*(Claude|Copilot|GPT|OpenAI|Anthropic|Gemini|Codeium
 awk '/^[[:space:]]*$/ { blank = blank "\n"; next } { printf "%s%s\n", blank, $0; blank = "" }' "${msg_file}.tmp" > "$msg_file"
 
 rm -f "${msg_file}.tmp"
+
+# Chain global hook if present (project hooksPath overrides don't chain automatically)
+global_hook="$HOME/.config/git/hooks/commit-msg"
+[[ -x "$global_hook" ]] && "$global_hook" "$@"
