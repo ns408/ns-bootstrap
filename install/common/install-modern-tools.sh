@@ -122,9 +122,9 @@ else
     # duf (better df) — Go binary, install from GitHub release
     if ! command -v duf &> /dev/null; then
         log_info "Installing duf..."
-        local duf_url="https://github.com/muesli/duf/releases/download/v0.8.1/duf_0.8.1_linux_amd64.deb"
-        local duf_tmp="/tmp/duf.deb"
-        curl -fsSL "$duf_url" -o "$duf_tmp" && sudo dpkg -i "$duf_tmp" && rm -f "$duf_tmp"
+        curl -fsSL "https://github.com/muesli/duf/releases/download/v0.8.1/duf_0.8.1_linux_amd64.deb" -o /tmp/duf.deb \
+            && sudo dpkg -i /tmp/duf.deb \
+            && rm -f /tmp/duf.deb
     fi
 
     # doggo (DNS tool) - install via snap
