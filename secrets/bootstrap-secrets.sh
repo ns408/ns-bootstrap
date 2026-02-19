@@ -119,19 +119,28 @@ else
     # avoiding the pinentry-over-SSH timeout entirely.
     mkdir -p ~/.gnupg
     chmod 700 ~/.gnupg
-    # gpg-agent.conf: allow loopback requests from any gpg invocation
+    # gpg-agent.conf: allow loopback + long passphrase cache (so one entry survives the session)
     grep -qxF 'allow-loopback-pinentry' ~/.gnupg/gpg-agent.conf 2>/dev/null \
         || echo 'allow-loopback-pinentry' >> ~/.gnupg/gpg-agent.conf
+    grep -qxF 'default-cache-ttl 34560000' ~/.gnupg/gpg-agent.conf 2>/dev/null \
+        || echo 'default-cache-ttl 34560000' >> ~/.gnupg/gpg-agent.conf
+    grep -qxF 'max-cache-ttl 34560000' ~/.gnupg/gpg-agent.conf 2>/dev/null \
+        || echo 'max-cache-ttl 34560000' >> ~/.gnupg/gpg-agent.conf
     # gpg.conf: force loopback mode for ALL gpg calls, including those spawned by pass
     grep -qxF 'pinentry-mode loopback' ~/.gnupg/gpg.conf 2>/dev/null \
         || echo 'pinentry-mode loopback' >> ~/.gnupg/gpg.conf
     gpgconf --kill gpg-agent
     export GPG_TTY=$(tty)
-    # Persist GPG_TTY into shell profiles so every new terminal can use pass/gpg
-    grep -qxF 'export GPG_TTY=$(tty)' ~/.bashrc 2>/dev/null \
-        || echo 'export GPG_TTY=$(tty)' >> ~/.bashrc
-    [[ -f ~/.zshrc ]] && { grep -qxF 'export GPG_TTY=$(tty)' ~/.zshrc 2>/dev/null \
-        || echo 'export GPG_TTY=$(tty)' >> ~/.zshrc; }
+    # Persist GPG_TTY into all shell profiles — ~/.profile covers SSH login sessions
+    # where ~/.bashrc is not sourced
+    _add_gpg_tty() {
+        grep -qxF 'export GPG_TTY=$(tty)' "$1" 2>/dev/null \
+            || echo 'export GPG_TTY=$(tty)' >> "$1"
+    }
+    _add_gpg_tty ~/.profile
+    [[ -f ~/.bashrc ]] && _add_gpg_tty ~/.bashrc
+    [[ -f ~/.zshrc  ]] && _add_gpg_tty ~/.zshrc
+    unset -f _add_gpg_tty
 
     log_info "Checking for pass (password-store)..."
     if ! command -v pass &> /dev/null; then
