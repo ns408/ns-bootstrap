@@ -149,11 +149,17 @@ else
         && _add_to_profile 'gpg-connect-agent UPDATESTARTUPTTY /bye >/dev/null 2>&1' ~/.zshrc
     unset -f _add_to_profile
 
+    # Ensure pinentry-tty is installed regardless of whether pass was already present
+    if ! command -v pinentry-tty &> /dev/null; then
+        log_info "Installing pinentry-tty..."
+        sudo apt install -y pinentry-tty
+    fi
+
     log_info "Checking for pass (password-store)..."
     if ! command -v pass &> /dev/null; then
         log_warn "pass not found. Installing..."
         sudo apt update
-        sudo apt install -y pass gnupg2 pinentry-tty
+        sudo apt install -y pass gnupg2
         log_info "pass installed."
     else
         log_info "pass already installed"
