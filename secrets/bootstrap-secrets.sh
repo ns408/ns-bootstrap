@@ -115,38 +115,43 @@ if [[ "$OS" == "macos" ]]; then
 
 else
     # Configure gpg-agent for SSH use — must run every time, not just on fresh install.
-    # loopback pinentry makes gpg handle passphrase prompts directly in the terminal,
-    # avoiding the pinentry-over-SSH timeout entirely.
+    # pinentry-tty is the correct approach: it is spawned by gpg-agent (not gpg itself),
+    # so it is NOT subject to the --batch flag that pass always passes to gpg.
+    # pinentry-mode loopback is incompatible with pass because pass uses --batch.
     mkdir -p ~/.gnupg
     chmod 700 ~/.gnupg
-    # gpg-agent.conf: allow loopback + long passphrase cache (so one entry survives the session)
-    grep -qxF 'allow-loopback-pinentry' ~/.gnupg/gpg-agent.conf 2>/dev/null \
-        || echo 'allow-loopback-pinentry' >> ~/.gnupg/gpg-agent.conf
+    # gpg-agent.conf: use pinentry-tty + long passphrase cache
+    grep -qxF 'pinentry-program /usr/bin/pinentry-tty' ~/.gnupg/gpg-agent.conf 2>/dev/null \
+        || echo 'pinentry-program /usr/bin/pinentry-tty' >> ~/.gnupg/gpg-agent.conf
     grep -qxF 'default-cache-ttl 34560000' ~/.gnupg/gpg-agent.conf 2>/dev/null \
         || echo 'default-cache-ttl 34560000' >> ~/.gnupg/gpg-agent.conf
     grep -qxF 'max-cache-ttl 34560000' ~/.gnupg/gpg-agent.conf 2>/dev/null \
         || echo 'max-cache-ttl 34560000' >> ~/.gnupg/gpg-agent.conf
-    # gpg.conf: force loopback mode for ALL gpg calls, including those spawned by pass
-    grep -qxF 'pinentry-mode loopback' ~/.gnupg/gpg.conf 2>/dev/null \
-        || echo 'pinentry-mode loopback' >> ~/.gnupg/gpg.conf
+    # Remove any pinentry-mode loopback left by previous bootstrap runs
+    sed -i '/^pinentry-mode loopback$/d' ~/.gnupg/gpg.conf 2>/dev/null || true
     gpgconf --kill gpg-agent
     export GPG_TTY=$(tty)
-    # Persist GPG_TTY into all shell profiles — ~/.profile covers SSH login sessions
-    # where ~/.bashrc is not sourced
-    _add_gpg_tty() {
-        grep -qxF 'export GPG_TTY=$(tty)' "$1" 2>/dev/null \
-            || echo 'export GPG_TTY=$(tty)' >> "$1"
+    gpg-connect-agent UPDATESTARTUPTTY /bye >/dev/null
+    # Persist GPG_TTY + UPDATESTARTUPTTY to shell profiles.
+    # SSH login shells source ~/.profile, not ~/.bashrc, so write to both.
+    _add_to_profile() {
+        grep -qxF "$1" "$2" 2>/dev/null || echo "$1" >> "$2"
     }
-    _add_gpg_tty ~/.profile
-    [[ -f ~/.bashrc ]] && _add_gpg_tty ~/.bashrc
-    [[ -f ~/.zshrc  ]] && _add_gpg_tty ~/.zshrc
-    unset -f _add_gpg_tty
+    _add_to_profile 'export GPG_TTY=$(tty)' ~/.profile
+    _add_to_profile 'gpg-connect-agent UPDATESTARTUPTTY /bye >/dev/null 2>&1' ~/.profile
+    [[ -f ~/.bashrc ]] \
+        && _add_to_profile 'export GPG_TTY=$(tty)' ~/.bashrc \
+        && _add_to_profile 'gpg-connect-agent UPDATESTARTUPTTY /bye >/dev/null 2>&1' ~/.bashrc
+    [[ -f ~/.zshrc ]] \
+        && _add_to_profile 'export GPG_TTY=$(tty)' ~/.zshrc \
+        && _add_to_profile 'gpg-connect-agent UPDATESTARTUPTTY /bye >/dev/null 2>&1' ~/.zshrc
+    unset -f _add_to_profile
 
     log_info "Checking for pass (password-store)..."
     if ! command -v pass &> /dev/null; then
         log_warn "pass not found. Installing..."
         sudo apt update
-        sudo apt install -y pass gnupg2
+        sudo apt install -y pass gnupg2 pinentry-tty
         log_info "pass installed."
     else
         log_info "pass already installed"
@@ -162,7 +167,7 @@ else
             echo "    -> Choose: (1) Curve 25519 *default*"
             echo "    -> Expiry:  2y  (recommended)"
             echo ""
-            gpg --pinentry-mode loopback --full-generate-key
+            gpg --full-generate-key
         fi
 
         # Auto-detect the most recently added key's ID
