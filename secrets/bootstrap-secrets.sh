@@ -127,6 +127,11 @@ else
         || echo 'pinentry-mode loopback' >> ~/.gnupg/gpg.conf
     gpgconf --kill gpg-agent
     export GPG_TTY=$(tty)
+    # Persist GPG_TTY into shell profiles so every new terminal can use pass/gpg
+    grep -qxF 'export GPG_TTY=$(tty)' ~/.bashrc 2>/dev/null \
+        || echo 'export GPG_TTY=$(tty)' >> ~/.bashrc
+    [[ -f ~/.zshrc ]] && { grep -qxF 'export GPG_TTY=$(tty)' ~/.zshrc 2>/dev/null \
+        || echo 'export GPG_TTY=$(tty)' >> ~/.zshrc; }
 
     log_info "Checking for pass (password-store)..."
     if ! command -v pass &> /dev/null; then
