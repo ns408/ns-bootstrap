@@ -260,12 +260,17 @@ fi
 
 # --- System config (non-secret, stored locally) ---
 echo ""
-log_info "System configuration (stored locally, not in 1Password)..."
-read -p "  Shared data directory path [/Users/Shared]: " data_dir_input </dev/tty
-DATA_DIR="${data_dir_input:-/Users/Shared}"
+if [[ "$OS" == "macos" ]]; then
+    log_info "System configuration (stored locally, not in 1Password)..."
+    read -p "  Shared data directory path [/Users/Shared]: " data_dir_input </dev/tty
+    DATA_DIR="${data_dir_input:-/Users/Shared}"
 
-read -p "  MAC address to store for reset (leave blank to skip): " mac_address_input </dev/tty
-MAC_ADDRESS="${mac_address_input:-}"
+    read -p "  MAC address to store for reset (leave blank to skip): " mac_address_input </dev/tty
+    MAC_ADDRESS="${mac_address_input:-}"
+else
+    DATA_DIR=""
+    MAC_ADDRESS=""
+fi
 
 echo ""
 
@@ -382,7 +387,7 @@ process_template() {
     content="${content//\$\{WORK_REPO_DIR\}/${WORK_REPO_DIR:-}}"
     content="${content//\$\{OP_SSH_SIGN_PATH\}/${OP_SSH_SIGN_PATH:-}}"
     content="${content//\$\{GIT_CREDENTIAL_HELPER\}/${GIT_CREDENTIAL_HELPER:-store}}"
-    content="${content//\$\{DATA_DIR\}/${DATA_DIR:-/Users/Shared}}"
+    content="${content//\$\{DATA_DIR\}/${DATA_DIR:-}}"
     content="${content//\$\{HOME\}/$HOME}"
 
     # Create output directory if needed
