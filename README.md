@@ -6,6 +6,7 @@ Cross-platform system bootstrap for macOS (zsh) and Ubuntu 24.04 (bash).
 
 - [Quick Start](#quick-start)
 - [Profiles](#profiles)
+- [Architecture](#architecture)
 - [Structure](#structure)
 - [Documentation](#documentation)
 - [Secrets](#secrets)
@@ -32,6 +33,25 @@ cd ~/ns-bootstrap
 | **developer** | Minimal + languages (Python, Go, Ruby), Docker, OrbStack, AWS CLI, dev tools |
 | **cloud-engineer** | Developer + Terraform, Azure CLI, Kubernetes, security tools, Wireshark |
 
+## Architecture
+
+```mermaid
+flowchart TD
+    A([bootstrap.sh]) --> B[detect OS]
+    B --> C[select profile\nminimal · developer · cloud-engineer]
+    C --> D[install packages\nbrew bundle / apt]
+    D --> E[install modern tools\nripgrep fd fzf bat zoxide ...]
+    E --> F[symlink dotfiles\n.zshrc .vimrc .gitconfig ...]
+    F --> G[install git hooks\nsecret scan · AI trailer strip]
+    G --> H[init secrets\n1Password / pass]
+    H --> I[schedule updates\nlaunchd / systemd]
+
+    F -.->|on shell open| J[loader.sh]
+    J --> K[functions/ aliases/ platform/]
+```
+
+See [.ai/ARCHITECTURE.md](.ai/ARCHITECTURE.md) for detailed diagrams covering profiles, secrets, git hooks, two-account setup, and CI.
+
 ## Structure
 
 ```
@@ -43,6 +63,7 @@ secrets/           # Secrets management bootstrap
 scripts/           # Scheduled updates, launchd/systemd agents
 .ai/               # Project documentation and knowledge base
   CONTEXT.md       #   Project conventions and structure
+  ARCHITECTURE.md  #   System architecture diagrams
   knowledge/       #   Domain knowledge (macOS, shell, security, etc.)
 ```
 
