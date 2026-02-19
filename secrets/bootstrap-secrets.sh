@@ -134,17 +134,25 @@ else
 
     # Initialize pass if not already done (checks for the .gpg-id sentinel file)
     if [[ ! -f "${PASSWORD_STORE_DIR:-$HOME/.password-store}/.gpg-id" ]]; then
-        log_info "pass is not initialized. A GPG key is required."
-        echo "  Generate one now if you haven't already:"
-        echo "       gpg --full-generate-key"
-        echo "       -> Choose: (9) ECC (sign and encrypt)"
-        echo "       -> Choose: (1) Curve 25519 *default*"
-        echo "       -> Expiry:  2y  (recommended)"
-        echo "  Then find your key ID:"
-        echo "       gpg --list-keys --keyid-format LONG"
-        echo "       -> Copy the 16-char ID after 'ed25519/'"
-        echo ""
-        read -p "  Enter your GPG key ID: " gpg_key_id </dev/tty
+        # Check for existing keys; generate one inside this shell where GPG_TTY is set
+        existing_keys=$(gpg --list-keys --with-colons 2>/dev/null | grep -c '^pub' || true)
+        if [[ "$existing_keys" -eq 0 ]]; then
+            log_info "No GPG keys found. Generating one now (GPG_TTY is set in this shell)..."
+            echo "  When prompted:"
+            echo "    -> Choose: (9) ECC (sign and encrypt)"
+            echo "    -> Choose: (1) Curve 25519 *default*"
+            echo "    -> Expiry:  2y  (recommended)"
+            echo ""
+            gpg --full-generate-key
+        fi
+
+        # Auto-detect the most recently added key's ID
+        gpg_key_id=$(gpg --list-keys --keyid-format LONG --with-colons 2>/dev/null \
+            | awk -F: '/^pub/{id=$5} END{print id}')
+        log_info "Detected GPG key: $gpg_key_id"
+        read -p "  Press Enter to use this key, or type a different key ID: " override_id </dev/tty
+        gpg_key_id="${override_id:-$gpg_key_id}"
+
         if [[ -z "$gpg_key_id" ]]; then
             log_error "GPG key ID cannot be empty"
             exit 1
