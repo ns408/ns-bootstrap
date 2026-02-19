@@ -123,13 +123,10 @@ else
         hyperfine \
         bandwhich
 
-    # duf (better df) — Go binary, install from GitHub release
+    # duf (better df) — available via apt on Ubuntu 22.04+
     if ! command -v duf &> /dev/null; then
         log_info "Installing duf..."
-        DUF_ARCH="$(dpkg --print-architecture)"
-        curl -fsSL "https://github.com/muesli/duf/releases/download/v0.8.1/duf_0.8.1_linux_${DUF_ARCH}.deb" -o /tmp/duf.deb \
-            && sudo dpkg -i /tmp/duf.deb \
-            && rm -f /tmp/duf.deb
+        sudo apt install -y duf
     fi
 
     # doggo (DNS tool) - install via snap
