@@ -38,13 +38,13 @@ cd ~/ns-bootstrap
 ```mermaid
 flowchart TD
     A([bootstrap.sh]) --> B[detect OS]
-    B --> C[select profile\nminimal · developer · cloud-engineer]
-    C --> D[install packages\nbrew bundle / apt]
-    D --> E[install modern tools\nripgrep fd fzf bat zoxide ...]
-    E --> F[symlink dotfiles\n.zshrc .vimrc .gitconfig ...]
-    F --> G[install git hooks\nsecret scan · AI trailer strip]
-    G --> H[init secrets\n1Password / pass]
-    H --> I[schedule updates\nlaunchd / systemd]
+    B --> C[select profile<br/>minimal · developer · cloud-engineer]
+    C --> D[install packages<br/>brew bundle / apt]
+    D --> E[install modern tools<br/>ripgrep fd fzf bat zoxide ...]
+    E --> F[symlink dotfiles<br/>.zshrc .vimrc .gitconfig ...]
+    F --> G[install git hooks<br/>secret scan · AI trailer strip]
+    G --> H[init secrets<br/>1Password / pass]
+    H --> I[schedule updates<br/>launchd / systemd]
 
     F -.->|on shell open| J[loader.sh]
     J --> K[functions/ aliases/ platform/]
