@@ -120,9 +120,11 @@ else
     # pinentry-mode loopback is incompatible with pass because pass uses --batch.
     mkdir -p ~/.gnupg
     chmod 700 ~/.gnupg
-    # gpg-agent.conf: use pinentry-tty + long passphrase cache
-    grep -qxF 'pinentry-program /usr/bin/pinentry-tty' ~/.gnupg/gpg-agent.conf 2>/dev/null \
-        || echo 'pinentry-program /usr/bin/pinentry-tty' >> ~/.gnupg/gpg-agent.conf
+    # gpg-agent.conf: use pinentry-tty + long passphrase cache.
+    # Always replace any stale pinentry-program line (previous runs may have
+    # written pinentry-curses or pinentry-gnome3 which don't work over SSH).
+    sed -i '/^pinentry-program /d' ~/.gnupg/gpg-agent.conf 2>/dev/null || true
+    echo 'pinentry-program /usr/bin/pinentry-tty' >> ~/.gnupg/gpg-agent.conf
     grep -qxF 'default-cache-ttl 34560000' ~/.gnupg/gpg-agent.conf 2>/dev/null \
         || echo 'default-cache-ttl 34560000' >> ~/.gnupg/gpg-agent.conf
     grep -qxF 'max-cache-ttl 34560000' ~/.gnupg/gpg-agent.conf 2>/dev/null \
