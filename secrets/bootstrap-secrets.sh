@@ -114,19 +114,21 @@ if [[ "$OS" == "macos" ]]; then
     PROVIDER="1password"
 
 else
+    # Configure gpg-agent for SSH use — must run every time, not just on fresh install.
+    # loopback pinentry makes gpg handle passphrase prompts directly in the terminal,
+    # avoiding the pinentry-over-SSH timeout entirely.
+    mkdir -p ~/.gnupg
+    chmod 700 ~/.gnupg
+    grep -qxF 'allow-loopback-pinentry' ~/.gnupg/gpg-agent.conf 2>/dev/null \
+        || echo 'allow-loopback-pinentry' >> ~/.gnupg/gpg-agent.conf
+    gpgconf --kill gpg-agent
+    export GPG_TTY=$(tty)
+
     log_info "Checking for pass (password-store)..."
     if ! command -v pass &> /dev/null; then
         log_warn "pass not found. Installing..."
         sudo apt update
-        sudo apt install -y pass gnupg2 pinentry-curses
-
-        # Use terminal pinentry so gpg-agent doesn't time out over SSH
-        mkdir -p ~/.gnupg
-        chmod 700 ~/.gnupg
-        echo "pinentry-program /usr/bin/pinentry-curses" >> ~/.gnupg/gpg-agent.conf
-        gpgconf --kill gpg-agent
-        export GPG_TTY=$(tty)
-
+        sudo apt install -y pass gnupg2
         log_info "pass installed."
     else
         log_info "pass already installed"
@@ -134,16 +136,15 @@ else
 
     # Initialize pass if not already done (checks for the .gpg-id sentinel file)
     if [[ ! -f "${PASSWORD_STORE_DIR:-$HOME/.password-store}/.gpg-id" ]]; then
-        # Check for existing keys; generate one inside this shell where GPG_TTY is set
         existing_keys=$(gpg --list-keys --with-colons 2>/dev/null | grep -c '^pub' || true)
         if [[ "$existing_keys" -eq 0 ]]; then
-            log_info "No GPG keys found. Generating one now (GPG_TTY is set in this shell)..."
+            log_info "No GPG keys found. Generating one now..."
             echo "  When prompted:"
             echo "    -> Choose: (9) ECC (sign and encrypt)"
             echo "    -> Choose: (1) Curve 25519 *default*"
             echo "    -> Expiry:  2y  (recommended)"
             echo ""
-            gpg --full-generate-key
+            gpg --pinentry-mode loopback --full-generate-key
         fi
 
         # Auto-detect the most recently added key's ID
