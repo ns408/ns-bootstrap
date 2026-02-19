@@ -118,7 +118,14 @@ else
     if ! command -v pass &> /dev/null; then
         log_warn "pass not found. Installing..."
         sudo apt update
-        sudo apt install -y pass gnupg2
+        sudo apt install -y pass gnupg2 pinentry-curses
+
+        # Use terminal pinentry so gpg-agent doesn't time out over SSH
+        mkdir -p ~/.gnupg
+        chmod 700 ~/.gnupg
+        echo "pinentry-program /usr/bin/pinentry-curses" >> ~/.gnupg/gpg-agent.conf
+        gpgconf --kill gpg-agent
+        export GPG_TTY=$(tty)
 
         log_info "pass installed. You need to initialize it with a GPG key."
         echo "Steps:"
