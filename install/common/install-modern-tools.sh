@@ -107,6 +107,10 @@ else
         source "$HOME/.cargo/env"
     fi
 
+    # Ensure C toolchain is present — cargo needs cc/ld and libc6-dev (Scrt1.o, crti.o)
+    log_info "Ensuring C build toolchain is present..."
+    sudo apt install -y gcc libc6-dev
+
     # Tools that need cargo
     log_info "Installing cargo packages (this may take a while)..."
     cargo install \
@@ -122,7 +126,8 @@ else
     # duf (better df) — Go binary, install from GitHub release
     if ! command -v duf &> /dev/null; then
         log_info "Installing duf..."
-        curl -fsSL "https://github.com/muesli/duf/releases/download/v0.8.1/duf_0.8.1_linux_amd64.deb" -o /tmp/duf.deb \
+        DUF_ARCH="$(dpkg --print-architecture)"
+        curl -fsSL "https://github.com/muesli/duf/releases/download/v0.8.1/duf_0.8.1_linux_${DUF_ARCH}.deb" -o /tmp/duf.deb \
             && sudo dpkg -i /tmp/duf.deb \
             && rm -f /tmp/duf.deb
     fi
