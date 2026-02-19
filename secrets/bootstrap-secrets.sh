@@ -516,5 +516,9 @@ echo ""
 echo "Next steps:"
 echo "  1. Test git configuration: git config --get user.name"
 echo "  2. Open a new terminal to load config"
-echo "  3. Read secrets: op read \"op://${OP_VAULT}/${OP_ITEM_NAME}/Git Personal/name\""
+if [[ "$PROVIDER" == "1password" ]]; then
+    echo "  3. Read secrets: op read \"op://${OP_VAULT}/${OP_ITEM_NAME}/Git Personal/name\""
+else
+    echo "  3. Read secrets: pass show ns-bootstrap/git-personal/name"
+fi
 echo ""
