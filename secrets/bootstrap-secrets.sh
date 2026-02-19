@@ -127,22 +127,32 @@ else
         gpgconf --kill gpg-agent
         export GPG_TTY=$(tty)
 
-        log_info "pass installed. You need to initialize it with a GPG key."
-        echo "Steps:"
-        echo "  1. Generate GPG key:"
+        log_info "pass installed."
+    else
+        log_info "pass already installed"
+    fi
+
+    # Initialize pass if not already done (checks for the .gpg-id sentinel file)
+    if [[ ! -f "${PASSWORD_STORE_DIR:-$HOME/.password-store}/.gpg-id" ]]; then
+        log_info "pass is not initialized. A GPG key is required."
+        echo "  Generate one now if you haven't already:"
         echo "       gpg --full-generate-key"
         echo "       -> Choose: (9) ECC (sign and encrypt)"
         echo "       -> Choose: (1) Curve 25519 *default*"
         echo "       -> Expiry:  2y  (recommended)"
-        echo "  2. Find your key ID:"
+        echo "  Then find your key ID:"
         echo "       gpg --list-keys --keyid-format LONG"
         echo "       -> Copy the 16-char ID after 'ed25519/'"
-        echo "  3. Initialize pass:"
-        echo "       pass init <your-gpg-key-id>"
         echo ""
-        read -p "Press Enter after completing these steps..."
+        read -p "  Enter your GPG key ID: " gpg_key_id </dev/tty
+        if [[ -z "$gpg_key_id" ]]; then
+            log_error "GPG key ID cannot be empty"
+            exit 1
+        fi
+        pass init "$gpg_key_id"
+        log_info "pass initialized with key: $gpg_key_id"
     else
-        log_info "pass already installed"
+        log_info "pass already initialized"
     fi
 
     PROVIDER="pass"
