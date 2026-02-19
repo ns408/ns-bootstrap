@@ -119,8 +119,12 @@ else
     # avoiding the pinentry-over-SSH timeout entirely.
     mkdir -p ~/.gnupg
     chmod 700 ~/.gnupg
+    # gpg-agent.conf: allow loopback requests from any gpg invocation
     grep -qxF 'allow-loopback-pinentry' ~/.gnupg/gpg-agent.conf 2>/dev/null \
         || echo 'allow-loopback-pinentry' >> ~/.gnupg/gpg-agent.conf
+    # gpg.conf: force loopback mode for ALL gpg calls, including those spawned by pass
+    grep -qxF 'pinentry-mode loopback' ~/.gnupg/gpg.conf 2>/dev/null \
+        || echo 'pinentry-mode loopback' >> ~/.gnupg/gpg.conf
     gpgconf --kill gpg-agent
     export GPG_TTY=$(tty)
 
