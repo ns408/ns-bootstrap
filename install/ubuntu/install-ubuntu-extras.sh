@@ -71,3 +71,12 @@ else
         log_info "Docker Compose: $(docker compose version 2>/dev/null || echo 'not available')"
     fi
 fi
+
+# --- Disable unnecessary services ---
+log_info "Disabling unnecessary services..."
+for svc in cups cups-browsed; do
+    if systemctl is-enabled "$svc" &>/dev/null 2>&1; then
+        sudo systemctl disable --now "$svc"
+        log_info "Disabled ${svc}"
+    fi
+done
