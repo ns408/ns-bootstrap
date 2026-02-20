@@ -136,7 +136,8 @@ else
     export GPG_TTY
     gpg-connect-agent UPDATESTARTUPTTY /bye >/dev/null
     # Persist GPG_TTY + UPDATESTARTUPTTY to shell profiles.
-    # SSH login shells source ~/.profile, not ~/.bashrc, so write to both.
+    # zsh login sessions use ~/.zprofile (managed symlink — content already there).
+    # Write to ~/.profile and ~/.bashrc for bash fallback only.
     _add_to_profile() {
         grep -qxF "$1" "$2" 2>/dev/null || echo "$1" >> "$2"
     }
@@ -145,9 +146,6 @@ else
     [[ -f ~/.bashrc ]] \
         && _add_to_profile 'export GPG_TTY=$(tty)' ~/.bashrc \
         && _add_to_profile 'gpg-connect-agent UPDATESTARTUPTTY /bye >/dev/null 2>&1' ~/.bashrc
-    [[ -f ~/.zshrc ]] \
-        && _add_to_profile 'export GPG_TTY=$(tty)' ~/.zshrc \
-        && _add_to_profile 'gpg-connect-agent UPDATESTARTUPTTY /bye >/dev/null 2>&1' ~/.zshrc
     unset -f _add_to_profile
 
     # Ensure pinentry-tty is installed regardless of whether pass was already present

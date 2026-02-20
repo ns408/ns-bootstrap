@@ -19,3 +19,8 @@ typeset -U PATH
 
 # ─── mise (polyglot version manager for Node, Python, Ruby) ──
 command -v mise &>/dev/null && eval "$(mise activate zsh)"
+
+# ─── GPG agent TTY (required for pinentry-tty over SSH) ───────
+GPG_TTY=$(tty)
+export GPG_TTY
+gpg-connect-agent UPDATESTARTUPTTY /bye >/dev/null 2>&1
