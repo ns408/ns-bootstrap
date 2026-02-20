@@ -132,7 +132,8 @@ else
     # Remove any pinentry-mode loopback left by previous bootstrap runs
     sed -i '/^pinentry-mode loopback$/d' ~/.gnupg/gpg.conf 2>/dev/null || true
     gpgconf --kill gpg-agent
-    export GPG_TTY=$(tty)
+    GPG_TTY=$(tty)
+    export GPG_TTY
     gpg-connect-agent UPDATESTARTUPTTY /bye >/dev/null
     # Persist GPG_TTY + UPDATESTARTUPTTY to shell profiles.
     # SSH login shells source ~/.profile, not ~/.bashrc, so write to both.
