@@ -1,6 +1,6 @@
 # ns-bootstrap
 
-Cross-platform system bootstrap for macOS (zsh) and Ubuntu 24.04 (bash).
+Cross-platform system bootstrap for macOS and Ubuntu 24.04, both using zsh.
 
 ## Table of Contents
 
@@ -13,6 +13,7 @@ Cross-platform system bootstrap for macOS (zsh) and Ubuntu 24.04 (bash).
 - [Modern CLI Tools](#modern-cli-tools)
 - [Shell](#shell)
 - [macOS Initial Setup](#macos-initial-setup)
+- [Platform Compatibility](#platform-compatibility)
 - [License](#license)
 
 ## Quick Start
@@ -110,10 +111,16 @@ Run `modern-tools-help` for a full reference.
 
 ## Shell
 
+Both macOS and Ubuntu use zsh with the same stack:
+
 - **Framework:** Oh-My-Zsh (plugins, completions, git aliases)
 - **Prompt:** Starship (Rust-based, cross-shell, context-aware)
 - **History:** Atuin (SQLite-backed, fuzzy search, encrypted sync)
 - **Enhancements:** zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab
+
+Ubuntu specifics: zsh is installed via apt and set as the default shell via `usermod`.
+Dotfiles used: `dotfiles/shell/.zshrc.ubuntu` and `dotfiles/shell/.zprofile.ubuntu`
+(same as macOS but without macOS-only plugins and with Linux PATH setup).
 
 ## macOS Initial Setup
 
@@ -183,6 +190,15 @@ sudo scutil --set LocalHostName "$YOUR_HOSTNAME"
 - **Enable Firewall:** `sudo defaults write /Library/Preferences/com.apple.alf globalstate -int 1`
 - **Enable FileVault:** `sudo fdesetup enable`
 - **Disable Homebrew Analytics:** `brew analytics off`
+
+## Platform Compatibility
+
+| Platform | Architecture | Status |
+|----------|-------------|--------|
+| macOS (Apple Silicon) | ARM64 | Tested |
+| Ubuntu 24.04 LTS | ARM64 | Tested (SSH) |
+| macOS (Intel) | x86_64 | Expected to work, untested |
+| Ubuntu 24.04 LTS | x86_64 | Expected to work, untested |
 
 ## License
 
