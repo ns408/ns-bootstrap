@@ -1,0 +1,21 @@
+# ─── .zprofile ─────────────────────────────────────────────────
+# Runs ONCE per login session. Environment variables & PATH only.
+
+# ─── Setup Directory ──────────────────────────────────────────
+# Points to the ns-bootstrap repo. Override in ~/.zshenv if cloned elsewhere.
+export NS_BOOTSTRAP_DIR="${NS_BOOTSTRAP_DIR:-${HOME}/ns-bootstrap}"
+
+# ─── Environment Variables ─────────────────────────────────────
+export EDITOR="code --wait"
+export VISUAL="code --wait"
+export LANG="en_US.UTF-8"
+export LC_ALL="en_US.UTF-8"
+
+# ─── PATH ─────────────────────────────────────────────────────
+export PATH="${HOME}/go/bin:${HOME}/.cargo/bin:${HOME}/.local/bin:${HOME}/bin:${PATH}"
+
+# ─── PATH (deduplicated) ──────────────────────────────────────
+typeset -U PATH
+
+# ─── mise (polyglot version manager for Node, Python, Ruby) ──
+command -v mise &>/dev/null && eval "$(mise activate zsh)"

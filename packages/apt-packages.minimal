@@ -1,6 +1,7 @@
 # Minimal Profile - Ubuntu packages
 # Usage: xargs -a apt-packages.minimal sudo apt install -y
 git
+zsh
 vim
 tmux
 curl

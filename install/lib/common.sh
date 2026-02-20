@@ -30,7 +30,7 @@ detect_os() {
         . /etc/os-release
         if [[ "$ID" == "ubuntu" ]]; then
             OS="ubuntu"
-            SHELL_NAME="bash"
+            SHELL_NAME="zsh"
             PKG_MGR="apt"
         else
             log_error "Unsupported Linux distribution: $ID"

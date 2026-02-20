@@ -315,6 +315,9 @@ symlink_file() {
 if [[ "$OS" == "macos" ]]; then
     symlink_file "${PROJECT_ROOT}/dotfiles/shell/.zshrc" "${HOME}/.zshrc"
     symlink_file "${PROJECT_ROOT}/dotfiles/shell/.zprofile" "${HOME}/.zprofile"
+else
+    symlink_file "${PROJECT_ROOT}/dotfiles/shell/.zshrc.ubuntu" "${HOME}/.zshrc"
+    symlink_file "${PROJECT_ROOT}/dotfiles/shell/.zprofile.ubuntu" "${HOME}/.zprofile"
 fi
 
 # Vim
@@ -368,10 +371,17 @@ if [[ -f "${PROJECT_ROOT}/dotfiles/atuin/config.toml" ]]; then
     symlink_file "${PROJECT_ROOT}/dotfiles/atuin/config.toml" "${HOME}/.config/atuin/config.toml"
 fi
 
-# oh-my-zsh (install if missing)
-if [[ "$OS" == "macos" ]] && [[ ! -d "${HOME}/.oh-my-zsh" ]]; then
+# oh-my-zsh (install if missing — both platforms)
+# --keep-zshrc prevents OMZ from clobbering the already-symlinked .zshrc
+if [[ ! -d "${HOME}/.oh-my-zsh" ]]; then
     log_info "Installing oh-my-zsh..."
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended --keep-zshrc
+fi
+
+# Set zsh as default shell on Ubuntu (takes effect on next login)
+if [[ "$OS" == "ubuntu" ]] && [[ "$SHELL" != */zsh ]]; then
+    log_info "Setting zsh as default shell (takes effect on next login)..."
+    sudo usermod -s /usr/bin/zsh "$USER"
 fi
 
 # oh-my-zsh custom plugins (per-user, cloned into ~/.oh-my-zsh/custom/plugins)
@@ -530,7 +540,7 @@ if [[ "$OS" == "macos" ]]; then
     echo ""
     echo "To update later: update-my-system"
 else
-    echo "  1. Open a new terminal (or: source ~/.bashrc)"
+    echo "  1. Open a new terminal (or: source ~/.zshrc)"
     echo "  2. Verify tools: command -v rg fd fzf bat zoxide eza delta"
     echo "  3. Check secrets: pass show ns-bootstrap/git-personal/name"
 fi
