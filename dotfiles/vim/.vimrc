@@ -25,9 +25,7 @@ filetype plugin indent on
 
 " A nicer default Vim rc
 set tabstop=2
-" set softtabstop=0 noexpandtab
-" set softtabstop=2
-" set smarttab
+set softtabstop=2
 set ai
 set cursorline
 set incsearch
