@@ -158,9 +158,11 @@ Bootstrap installs daily scheduled update agents (launchd on macOS, systemd time
 | Schedule | What | Requires |
 |----------|------|----------|
 | 07:00 daily | `update-brew-daily` — Homebrew formulae only | No interaction |
-| 07:30 daily | `update-my-system` — Casks, mise, omz, App Store, softwareupdate | tmux session (admin only) |
+| 07:30 daily | `update-my-system` — Casks, mise, omz, App Store, softwareupdate | Admin GUI session |
 
-**Important:** You must be logged into the respective account via the macOS GUI (not via `su` or SSH) for the interactive update to work correctly. Some tools — notably `mas` (Mac App Store) and `softwareupdate` — require an active Aqua/GUI session. Running from a non-GUI context (e.g. `su - admin_user` from your daily account) may cause password prompts that block indefinitely or silently skip updates.
+**GUI session required:** LaunchAgents in `~/Library/LaunchAgents/` only load when the admin account is logged in via the macOS GUI. With Fast User Switching, the admin account can run in the background while you use the daily account — the agents will still fire. If the admin account is not logged in to the GUI, agents are deferred until next login.
+
+**Note:** `mas` (Mac App Store) and `softwareupdate` require an active Aqua/GUI session and will not work via `su` or SSH.
 
 To run updates manually:
 

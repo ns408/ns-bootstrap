@@ -456,12 +456,15 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         if dseditgroup -o checkmember -m "$(whoami)" admin &>/dev/null; then
             LAUNCH_AGENTS_DIR="${HOME}/Library/LaunchAgents"
             mkdir -p "$LAUNCH_AGENTS_DIR"
+            mkdir -p "${HOME}/.local/log"
 
             HOMEBREW_PREFIX="$(brew --prefix 2>/dev/null || echo "/opt/homebrew")"
+            LAUNCHD_USER="gui/$(id -u)"
 
             for template in "${PROJECT_ROOT}/scripts/launchd/"*.plist.template; do
                 [[ -f "$template" ]] || continue
                 local_name="$(basename "$template" .template)"
+                label="${local_name%.plist}"
                 dest="${LAUNCH_AGENTS_DIR}/${local_name}"
 
                 # Substitute variables at install time
@@ -470,12 +473,14 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
                     -e "s|\${HOMEBREW_PREFIX}|${HOMEBREW_PREFIX}|g" \
                     "$template" > "$dest"
 
-                # Load the agent (unload first if already loaded)
-                launchctl unload "$dest" 2>/dev/null || true
-                if launchctl load "$dest" 2>/dev/null; then
-                    log_info "Installed launchd agent: ${local_name}"
+                # Use modern launchctl bootstrap (load/unload deprecated since macOS 10.10).
+                # Requires an active GUI session — silently deferred if run via su/SSH.
+                # macOS auto-loads LaunchAgents from ~/Library/LaunchAgents on next GUI login.
+                launchctl bootout "${LAUNCHD_USER}/${label}" 2>/dev/null || true
+                if launchctl bootstrap "${LAUNCHD_USER}" "$dest" 2>/dev/null; then
+                    log_info "Installed and loaded launchd agent: ${local_name}"
                 else
-                    log_warn "Failed to load ${local_name} — load manually: launchctl load ${dest}"
+                    log_info "Installed launchd agent: ${local_name} (will load on next GUI login)"
                 fi
             done
         else
