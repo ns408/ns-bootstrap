@@ -9,21 +9,21 @@
 │  Entry Point          Package Definitions       Runtime Shell       │
 │  ─────────────        ──────────────────        ─────────────       │
 │  install/             packages/                 shell/              │
-│  bootstrap.sh   ───▶  Brewfile.{profile}        loader.sh     ◀─── │
-│                        apt-packages.{profile}   functions/         │
-│                        install-modern-tools.sh  aliases/           │
-│                        install-ubuntu-extras.sh platform/          │
+│  bootstrap.sh   ───▶  Brewfile.{profile}        loader.sh     ◀───  │
+│                        apt-packages.{profile}   functions/          │
+│                        install-modern-tools.sh  aliases/            │
+│                        install-ubuntu-extras.sh platform/           │
 │                                                                     │
 │  Dotfiles             Secrets                   Scheduled Updates   │
 │  ────────             ───────                   ─────────────────   │
-│  dotfiles/ ────▶ ~/   secrets/                  scripts/           │
-│  symlinked            bootstrap-secrets.sh      launchd/ (macOS)   │
+│  dotfiles/ ────▶ ~/   secrets/                  scripts/            │
+│  symlinked            bootstrap-secrets.sh      launchd/ (macOS)    │
 │                        ▼ 1Password / pass        systemd/ (Ubuntu)  │
 │                        ~/.gitconfig                                 │
 │                                                                     │
 │  Git Hooks            CI                                            │
 │  ─────────            ──                                            │
-│  ~/.config/           .github/workflows/                           │
+│  ~/.config/           .github/workflows/                            │
 │  git/hooks/           lint.yml                                      │
 │  (global)             bootstrap-test.yml                            │
 │                        brew-check.yml                               │
