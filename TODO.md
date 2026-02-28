@@ -28,6 +28,20 @@ Tracking future improvements and automation opportunities.
 - [ ] **npm audit integration** — Even with `ignore-scripts=true`, run `npm audit` periodically on any Node projects bootstrapped by mise
 - [ ] **Shell function injection review** — Audit all `eval "$(tool init zsh)"` calls (starship, zoxide, atuin, mise, brew shellenv) for unexpected side effects; consider redirecting init output to a cached file and diffing on update
 
+## Tool Candidates
+
+Tools reviewed but not yet installed — candidates for adding to Brewfile profiles.
+Source: https://www.linkedin.com/posts/alexandre-zajac_22-terminal-tools-that-99-of-engineers-dont-activity-7432824336312512512-bMNO
+
+- [ ] **lazygit** — Full terminal Git UI; stage individual hunks, interactive rebase, branch management
+- [ ] **ncdu** — Interactive TUI disk usage analyzer; find what's eating disk in seconds
+- [ ] **entr** — Run commands automatically when files change; ideal for instant test feedback loops
+- [ ] **pv** — Pipe viewer; shows progress, speed, and ETA for any piped data transfer
+- [ ] **ti** — Text-mode Git interface; browse commits, diffs, and blame without leaving the terminal
+- [ ] **mcfly** — Replaces Ctrl+R with a neural-network-powered history search trained on context
+- [ ] **gron** — Makes JSON greppable by flattening to `path = value` format
+- [ ] **glow** — Renders Markdown in the terminal; read project docs from the CLI
+
 ## Housekeeping
 
 - [ ] **Secrets rotation reminder** — GitHub Action to open an issue quarterly reminding to rotate API tokens
