@@ -28,12 +28,12 @@
     allowedSignersFile = ${HOME}/.gitconfig_allowed-signers
 
 [commit]
-    gpgsign = true
+    gpgsign = ${GIT_COMMIT_GPGSIGN}
     verbose = true
 
 
 [tag]
-    gpgsign = true
+    gpgsign = ${GIT_COMMIT_GPGSIGN}
     sort = version:refname
 
 # ─── Diff ──────────────────────────────────────────────────────

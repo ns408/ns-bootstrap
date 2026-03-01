@@ -77,6 +77,12 @@ else
     OP_SSH_SIGN_PATH=""
 fi
 
+if [[ -n "$OP_SSH_SIGN_PATH" ]]; then
+    GIT_COMMIT_GPGSIGN="true"
+else
+    GIT_COMMIT_GPGSIGN="false"
+fi
+
 # Set git credential helper based on OS
 if [[ "$OS" == "macos" ]]; then
     GIT_CREDENTIAL_HELPER="osxkeychain"
@@ -436,6 +442,7 @@ process_template() {
     content="${content//\$\{WORK_GPG_SECTION\}/${WORK_GPG_SECTION:-}}"
     content="${content//\$\{WORK_REPO_DIR\}/${WORK_REPO_DIR:-}}"
     content="${content//\$\{OP_SSH_SIGN_PATH\}/${OP_SSH_SIGN_PATH:-}}"
+    content="${content//\$\{GIT_COMMIT_GPGSIGN\}/${GIT_COMMIT_GPGSIGN:-false}}"
     content="${content//\$\{GIT_CREDENTIAL_HELPER\}/${GIT_CREDENTIAL_HELPER:-store}}"
     content="${content//\$\{DATA_DIR\}/${DATA_DIR:-}}"
     content="${content//\$\{HOME\}/$HOME}"
