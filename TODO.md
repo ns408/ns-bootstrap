@@ -17,7 +17,6 @@ Tracking future improvements and automation opportunities.
 - [ ] **Dotfile diff preview** — `bootstrap.sh --dry-run` flag to show what would change without modifying anything
 - [ ] **Restore from backup** — `bootstrap.sh --restore <timestamp>` to roll back dotfiles from `~/.dotfiles-backup/`
 - [ ] **Profile upgrade path** — Allow upgrading from `minimal` to `developer` without re-running the full bootstrap
-- [ ] **Ubuntu dotfiles-only mode** — Extend `--dotfiles-only` to also work for bash on Ubuntu (currently zsh-focused)
 - [ ] **Ubuntu SSH commit signing fallback** — When `op-ssh-sign` is absent, fall back to `ssh-keygen` (uses SSH agent) or GPG signing using the existing `pass` GPG key, rather than disabling signing entirely
 
 ## Security

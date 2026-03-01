@@ -5,7 +5,7 @@ It manages dotfiles, shell configuration, package installation, and secrets.
 
 ## Key Conventions
 
-- Shell scripts target zsh (macOS) and bash (Ubuntu)
+- Shell scripts target zsh on both macOS and Ubuntu
 - Secrets are managed via 1Password CLI (macOS) or pass (Ubuntu) — never committed
 - Config files use `${PLACEHOLDER}` template variables processed by `secrets/bootstrap-secrets.sh`
 - Brewfiles are split by profile: minimal, developer, cloud-engineer

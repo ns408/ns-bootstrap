@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Main Bootstrap Installer for ns-bootstrap
-# Supports macOS (zsh) and Ubuntu 24.04 (bash)
+# Supports macOS (zsh) and Ubuntu 24.04 (zsh)
 #
 # Usage:
 #   ./bootstrap.sh                          # Full install (admin): packages + dotfiles + secrets
