@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ubuntu-specific installations: AWS CLI v2, Docker Engine
+# Ubuntu-specific installations: AWS CLI v2, Docker Engine, GitHub CLI
 # These use official sources (not apt defaults which are outdated)
 set -euo pipefail
 
@@ -27,6 +27,35 @@ if ! command -v aws &>/dev/null || [[ "$(aws --version 2>&1)" != *"aws-cli/2"* ]
     log_info "AWS CLI v2 installed: $(aws --version)"
 else
     log_info "AWS CLI v2 already installed: $(aws --version)"
+fi
+
+# --- GitHub CLI (official GitHub repository) ---
+log_info "Checking GitHub CLI..."
+if ! command -v gh &>/dev/null; then
+    log_info "Installing GitHub CLI from official repository..."
+    
+    # Install wget if not present
+    (type -p wget >/dev/null || (sudo apt update && sudo apt install wget -y))
+    
+    # Add GitHub GPG key
+    sudo mkdir -p -m 755 /etc/apt/keyrings
+    out=$(mktemp)
+    wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg
+    cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null
+    sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    rm -f $out
+    
+    # Add GitHub repository
+    sudo mkdir -p -m 755 /etc/apt/sources.list.d
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+    
+    # Install GitHub CLI
+    sudo apt update
+    sudo apt install gh -y
+    
+    log_info "GitHub CLI installed: $(gh --version)"
+else
+    log_info "GitHub CLI already installed: $(gh --version)"
 fi
 
 # --- Docker Engine (official Docker repo) ---
