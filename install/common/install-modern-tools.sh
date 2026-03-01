@@ -153,6 +153,14 @@ else
         log_info "atuin already installed"
     fi
 
+    # mise (version manager)
+    log_info "Installing mise (version manager)..."
+    if ! command -v mise &>/dev/null; then
+        curl --proto '=https' --tlsv1.2 -LsSf https://mise.run | sh
+    else
+        log_info "mise already installed"
+    fi
+
     log_info "Ubuntu modern tools installed successfully!"
 fi
 
