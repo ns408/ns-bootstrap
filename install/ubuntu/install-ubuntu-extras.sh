@@ -101,6 +101,32 @@ else
     fi
 fi
 
+# --- gitleaks (secret scanner for pre-commit hook) ---
+log_info "Checking gitleaks..."
+# Remove apt-installed version (outdated — Ubuntu universe has 8.16.0, latest is 8.30.0+)
+if dpkg -l gitleaks 2>/dev/null | grep -q '^ii'; then
+    log_warn "Removing outdated apt-installed gitleaks in favour of latest GitHub release..."
+    sudo apt-get remove -y gitleaks
+fi
+if [[ ! -x /usr/local/bin/gitleaks ]]; then
+    log_info "Installing gitleaks from GitHub releases..."
+    CURL_AUTH=()
+    [[ -n "${GITHUB_TOKEN:-}" ]] && CURL_AUTH=(-H "Authorization: token $GITHUB_TOKEN")
+    GITLEAKS_VERSION=$(curl -fsSL "${CURL_AUTH[@]}" \
+        https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
+        | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+    ARCH=$(dpkg --print-architecture)
+    [[ "$ARCH" == "amd64" ]] && GITLEAKS_ARCH="x64" || GITLEAKS_ARCH="arm64"
+    curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${GITLEAKS_ARCH}.tar.gz" \
+        -o /tmp/gitleaks.tar.gz
+    tar -xzf /tmp/gitleaks.tar.gz -C /tmp/ gitleaks
+    sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
+    rm /tmp/gitleaks.tar.gz
+    log_info "gitleaks installed: $(gitleaks version)"
+else
+    log_info "gitleaks already installed: $(gitleaks version)"
+fi
+
 # --- Disable unnecessary services ---
 log_info "Disabling unnecessary services..."
 for svc in cups cups-browsed; do

@@ -45,6 +45,7 @@ jobs:
           su - testuser -c "cd $GITHUB_WORKSPACE && ./install/bootstrap.sh --profile ${{ matrix.profile }} --yes"
         env:
           NONINTERACTIVE: '1'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify core tools
         run: |
@@ -53,6 +54,10 @@ jobs:
       - name: Verify modern CLI tools
         run: |
           su - testuser -c "command -v rg && command -v fd && command -v fzf && command -v bat"
+
+      - name: Verify security tools
+        run: |
+          su - testuser -c "command -v gitleaks && gitleaks version"
 
       - name: Verify dotfiles symlinked
         run: |
