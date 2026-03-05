@@ -157,16 +157,16 @@ if ! command -v kubectl &>/dev/null; then
         -o /tmp/kubectl
     sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
     rm /tmp/kubectl
-    log_info "kubectl installed: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
+    log_info "kubectl installed: $(kubectl version --client)"
 else
-    log_info "kubectl already installed: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
+    log_info "kubectl already installed: $(kubectl version --client)"
 fi
 
 # --- Helm (official install script) ---
 log_info "Checking Helm..."
 if ! command -v helm &>/dev/null; then
     log_info "Installing Helm..."
-    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | bash
     log_info "Helm installed: $(helm version --short)"
 else
     log_info "Helm already installed: $(helm version --short)"

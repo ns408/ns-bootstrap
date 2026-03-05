@@ -1,0 +1,99 @@
+name: Package Parity Check
+
+on:
+  schedule:
+    - cron: '0 9 1 * *'  # First of each month at 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check-parity:
+    name: Cross-platform parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Extract macOS brew tools
+        run: |
+          # Extract CLI tool names from Brewfile (skip taps, casks, mas)
+          grep -E '^brew ' packages/Brewfile.cloud-engineer \
+            | sed 's/brew "\(.*\)"/\1/' \
+            | sed 's|.*/||' \
+            > /tmp/macos-tools.txt
+          echo "=== macOS brew tools ==="
+          cat /tmp/macos-tools.txt
+
+      - name: Extract Ubuntu tools
+        run: |
+          # apt-packages (skip comments and blank lines)
+          grep -v '^\s*#' packages/apt-packages.cloud-engineer \
+            | grep -v '^\s*$' \
+            > /tmp/ubuntu-apt.txt
+
+          # Tools installed by install-ubuntu-extras.sh (parse command -v checks)
+          grep -oP 'command -v \K\S+' install/ubuntu/install-ubuntu-extras.sh \
+            >> /tmp/ubuntu-apt.txt
+
+          # Tools installed by install-modern-tools.sh
+          if [ -f install/common/install-modern-tools.sh ]; then
+            grep -oP 'command -v \K\S+' install/common/install-modern-tools.sh \
+              >> /tmp/ubuntu-apt.txt 2>/dev/null || true
+          fi
+
+          sort -u /tmp/ubuntu-apt.txt > /tmp/ubuntu-tools.txt
+          echo "=== Ubuntu tools ==="
+          cat /tmp/ubuntu-tools.txt
+
+      - name: Check parity
+        run: |
+          # Known macOS-only tools (no Ubuntu equivalent needed)
+          cat > /tmp/macos-only-expected.txt << 'EOF'
+          bash
+          coreutils
+          gnu-sed
+          grep
+          mas
+          openssl@3
+          pinentry-mac
+          watch
+          EOF
+          sed -i 's/^[[:space:]]*//' /tmp/macos-only-expected.txt
+
+          # Normalize names: map brew names to binary names where they differ
+          cat > /tmp/name-map.txt << 'EOF'
+          awscli=aws
+          fd=fd
+          git-delta=delta
+          go=golang
+          hashicorp/tap/terraform=terraform
+          knot=kdig
+          azure-cli=az
+          mysql-client=mysql
+          ripgrep=rg
+          EOF
+
+          MISSING=0
+          while IFS= read -r tool; do
+            # Skip known macOS-only
+            if grep -qxF "$tool" /tmp/macos-only-expected.txt; then
+              continue
+            fi
+
+            # Map brew name to check name
+            check_name="$tool"
+            mapped=$(grep "^${tool}=" /tmp/name-map.txt | cut -d= -f2)
+            [[ -n "$mapped" ]] && check_name="$mapped"
+
+            # Check if present in Ubuntu tools (exact or substring match)
+            if ! grep -qiF "$check_name" /tmp/ubuntu-tools.txt; then
+              echo "::warning::macOS has '$tool' but no Ubuntu equivalent found (looked for '$check_name')"
+              MISSING=$((MISSING + 1))
+            fi
+          done < /tmp/macos-tools.txt
+
+          if [ "$MISSING" -gt 0 ]; then
+            echo ""
+            echo "⚠ Found $MISSING macOS tools without Ubuntu equivalents."
+            echo "Review and add to apt-packages or install-ubuntu-extras.sh if needed."
+          else
+            echo "✓ All macOS brew tools have Ubuntu equivalents."
+          fi

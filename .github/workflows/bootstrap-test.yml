@@ -59,6 +59,11 @@ jobs:
         run: |
           su - testuser -c "command -v gitleaks && gitleaks version"
 
+      - name: Verify cloud tools
+        if: matrix.profile == 'cloud-engineer'
+        run: |
+          su - testuser -c "command -v terraform && command -v kubectl && command -v helm && command -v az && command -v aws"
+
       - name: Verify dotfiles symlinked
         run: |
           su - testuser -c "test -L ~/.vimrc && test -L ~/.inputrc && test -L ~/.gitignore_global"
