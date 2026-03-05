@@ -127,6 +127,26 @@ else
     log_info "gitleaks already installed: $(gitleaks version)"
 fi
 
+# --- Terraform (official HashiCorp binary from GitHub releases) ---
+log_info "Checking Terraform..."
+if ! command -v terraform &>/dev/null; then
+    log_info "Installing Terraform from GitHub releases..."
+    CURL_AUTH=()
+    [[ -n "${GITHUB_TOKEN:-}" ]] && CURL_AUTH=(-H "Authorization: token $GITHUB_TOKEN")
+    TF_VERSION=$(curl -fsSL "${CURL_AUTH[@]}" \
+        https://api.github.com/repos/hashicorp/terraform/releases/latest \
+        | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+    ARCH=$(dpkg --print-architecture)
+    curl -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_${ARCH}.zip" \
+        -o /tmp/terraform.zip
+    unzip -qo /tmp/terraform.zip -d /tmp/ terraform
+    sudo mv /tmp/terraform /usr/local/bin/terraform
+    rm /tmp/terraform.zip
+    log_info "Terraform installed: $(terraform --version | head -1)"
+else
+    log_info "Terraform already installed: $(terraform --version | head -1)"
+fi
+
 # --- Disable unnecessary services ---
 log_info "Disabling unnecessary services..."
 for svc in cups cups-browsed; do
