@@ -25,8 +25,13 @@ python3-pip
 python3-venv
 golang
 ruby
+xclip
+yamllint
+skopeo
+unattended-upgrades
+mysql-client
 # Containers (Docker installed via install-ubuntu-extras.sh from official repo)
-# Cloud & Infra (AWS CLI v2 installed via install-ubuntu-extras.sh from official binary)
+# Cloud & Infra (AWS CLI v2, Terraform, kubectl, helm, azure-cli installed via install-ubuntu-extras.sh)
 pass
 sslscan
 # Security

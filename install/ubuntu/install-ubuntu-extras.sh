@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Ubuntu-specific installations: AWS CLI v2, Docker Engine, GitHub CLI
-# These use official sources (not apt defaults which are outdated)
+# Ubuntu-specific installations from official sources (not apt defaults which are outdated):
+# AWS CLI v2, GitHub CLI, Docker Engine, gitleaks, Terraform, kubectl, Helm, Azure CLI
 set -euo pipefail
 
 # Colors
@@ -145,6 +145,47 @@ if ! command -v terraform &>/dev/null; then
     log_info "Terraform installed: $(terraform --version | head -1)"
 else
     log_info "Terraform already installed: $(terraform --version | head -1)"
+fi
+
+# --- kubectl (official Kubernetes binary) ---
+log_info "Checking kubectl..."
+if ! command -v kubectl &>/dev/null; then
+    log_info "Installing kubectl..."
+    ARCH=$(dpkg --print-architecture)
+    KUBECTL_VERSION=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
+    curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl" \
+        -o /tmp/kubectl
+    sudo install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
+    rm /tmp/kubectl
+    log_info "kubectl installed: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
+else
+    log_info "kubectl already installed: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
+fi
+
+# --- Helm (official install script) ---
+log_info "Checking Helm..."
+if ! command -v helm &>/dev/null; then
+    log_info "Installing Helm..."
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    log_info "Helm installed: $(helm version --short)"
+else
+    log_info "Helm already installed: $(helm version --short)"
+fi
+
+# --- Azure CLI (official Microsoft repository) ---
+log_info "Checking Azure CLI..."
+if ! command -v az &>/dev/null; then
+    log_info "Installing Azure CLI from Microsoft repository..."
+    sudo mkdir -p -m 755 /etc/apt/keyrings
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg
+    sudo chmod go+r /etc/apt/keyrings/microsoft.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $(. /etc/os-release && echo "$VERSION_CODENAME") main" | \
+        sudo tee /etc/apt/sources.list.d/azure-cli.list > /dev/null
+    sudo apt-get update
+    sudo apt-get install -y azure-cli
+    log_info "Azure CLI installed: $(az version --output tsv 2>/dev/null | head -1)"
+else
+    log_info "Azure CLI already installed: $(az version --output tsv 2>/dev/null | head -1)"
 fi
 
 # --- Disable unnecessary services ---

@@ -15,6 +15,7 @@ htop
 psmisc
 make
 unzip
+xclip
 # Modern CLI tools
 ripgrep
 fd-find

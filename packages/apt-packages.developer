@@ -25,4 +25,7 @@ python3-pip
 python3-venv
 golang
 ruby
+xclip
+yamllint
+skopeo
 # Containers (Docker installed via install-ubuntu-extras.sh from official repo)
