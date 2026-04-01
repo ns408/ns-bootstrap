@@ -58,7 +58,7 @@ update-my-system() {
     # oh-my-zsh
     if command -v omz &>/dev/null; then
       echo -e "\n--- oh-my-zsh ---"
-      omz update --unattended
+      "${ZSH}/tools/upgrade.sh"
     fi
 
     # Pending security updates

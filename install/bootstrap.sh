@@ -193,16 +193,24 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
             "brave-browser"
             "firefox"
             "microsoft-edge"
+            "tor-browser"
             # Apps with built-in auto-updaters
             "visual-studio-code"
             "1password"
-            "docker"
+            "docker-desktop"
             "google-drive"
             "slack"
             "zoom"
             "microsoft-teams"
-            "mullvadvpn"
+            "microsoft-auto-update"
+            "mullvad-vpn"
             "orbstack"
+            "ghostty"
+            "iterm2"
+            "keka"
+            "proxyman"
+            "rectangle"
+            "tunnelblick"
         )
         for cask in "${UNTRACK_CASKS[@]}"; do
             if ! brew list --cask "$cask" &>/dev/null 2>&1; then

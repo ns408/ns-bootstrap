@@ -18,7 +18,7 @@ update-brew-daily() {
 
   {
     echo "=== Brew Daily Update: $(date) ==="
-    brew update
+    brew update || true
     brew upgrade
     echo "=== Done: $(date) ==="
   } 2>&1 | tee -a "$log"
@@ -64,7 +64,7 @@ update-my-system() {
     # oh-my-zsh
     if command -v omz &>/dev/null; then
       echo -e "\n--- oh-my-zsh ---"
-      omz update --unattended
+      "${ZSH}/tools/upgrade.sh"
     fi
 
     # Microsoft apps

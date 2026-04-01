@@ -65,6 +65,7 @@ brew "pinentry-mac"
 brew "shellcheck"
 brew "skopeo"
 brew "yamllint"
+brew "qemu"
 brew "thefuck"
 brew "yt-dlp"
 
