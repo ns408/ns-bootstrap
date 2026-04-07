@@ -577,7 +577,7 @@ if [[ "$OS" == "macos" ]]; then
     echo ""
     echo "To update later: update-my-system"
 else
-    echo "  1. Open a new terminal (or: source ~/.zshrc)"
+    echo "  1. Log out and back in — zsh is now your default shell"
     echo "  2. Verify tools: command -v rg fd fzf bat zoxide eza delta"
     echo "  3. Check secrets: pass show ns-bootstrap/git-personal/name"
 fi
