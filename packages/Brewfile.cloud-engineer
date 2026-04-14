@@ -80,6 +80,7 @@ brew "helm"
 brew "mysql-client"
 
 # Security tools
+brew "git-crypt"
 brew "qrencode"
 
 # GUI apps (developer + cloud-specific)

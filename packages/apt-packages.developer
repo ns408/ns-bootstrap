@@ -10,6 +10,7 @@ tree
 jq
 nmap
 gnupg2
+git-crypt
 rsync
 htop
 psmisc

@@ -47,6 +47,9 @@ brew "doggo"
 brew "knot"
 brew "yq"
 
+# Security
+brew "git-crypt"
+
 # Version management
 brew "mise"
 

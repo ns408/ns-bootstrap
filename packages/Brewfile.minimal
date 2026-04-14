@@ -45,6 +45,7 @@ brew "knot"
 brew "yq"
 
 # Security
+brew "git-crypt"
 brew "gitleaks"
 
 # Version management
