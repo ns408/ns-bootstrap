@@ -29,4 +29,5 @@ ruby
 xclip
 yamllint
 skopeo
+sshuttle
 # Containers (Docker installed via install-ubuntu-extras.sh from official repo)

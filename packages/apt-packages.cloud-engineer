@@ -29,6 +29,7 @@ ruby
 xclip
 yamllint
 skopeo
+sshuttle
 unattended-upgrades
 mysql-client
 # Containers (Docker installed via install-ubuntu-extras.sh from official repo)
