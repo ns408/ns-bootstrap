@@ -26,7 +26,7 @@ alias curl_headers='curl -s -o /dev/null -D -'
 alias curl_download="curl -O --"
 
 # SOCKS5 proxy
-alias bash_socks5="export http_proxy=socks5://127.0.0.1:8080 https_proxy=socks5://127.0.0.1:8080"
+alias bash_socks5="export http_proxy=socks5://127.0.0.1:1080 https_proxy=socks5://127.0.0.1:1080 ALL_PROXY=socks5://127.0.0.1:1080"
 
 # Process / system
 alias wtf='watch -n 1 w -hs'

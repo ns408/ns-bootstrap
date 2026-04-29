@@ -49,5 +49,5 @@ ssh_fingerprint() {
 # Dynamic port forwarding (SOCKS5 tunnel)
 function ssh_dynamic_port_forwarding() {
   local login="$1"
-  ssh -v -nNT -D "*:40800" "$login"
+  ssh -v -nNT -D "127.0.0.1:1080" "$login"
 }
