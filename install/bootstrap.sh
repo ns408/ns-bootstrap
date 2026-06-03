@@ -112,7 +112,7 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         echo "  oh-my-zsh + custom plugins"
         echo "  Secrets system (1Password / pass)"
         echo "  Scheduled update agents (launchd / systemd)"
-        echo "  Global git hooks (gitleaks pre-commit)"
+        echo "  Global git hooks (gitleaks pre-commit + pre-push, AI-trailer stripping)"
         echo ""
         echo -e "${GREEN}No changes were made.${NC}"
         exit 0
@@ -257,7 +257,7 @@ else
         echo "Would configure:"
         echo "  oh-my-zsh + custom plugins"
         echo "  Secrets system (1Password / pass)"
-        echo "  Global git hooks (gitleaks pre-commit)"
+        echo "  Global git hooks (gitleaks pre-commit + pre-push, AI-trailer stripping)"
         echo ""
         echo -e "${GREEN}No changes were made.${NC}"
         exit 0
@@ -270,8 +270,11 @@ HOOKS_SRC="${PROJECT_ROOT}/dotfiles/git/hooks"
 HOOKS_DEST="${HOME}/.config/git/hooks"
 if [[ -d "$HOOKS_SRC" ]]; then
     mkdir -p "$HOOKS_DEST"
-    cp "$HOOKS_SRC"/* "$HOOKS_DEST/"
-    chmod +x "$HOOKS_DEST"/*
+    # -R so the lib/ subdir (shared helpers) is copied, not just top-level files.
+    cp -R "$HOOKS_SRC"/. "$HOOKS_DEST/"
+    # Only the hook entrypoints need +x; sourced helpers under lib/ do not.
+    chmod +x "$HOOKS_DEST"/pre-commit "$HOOKS_DEST"/pre-push \
+             "$HOOKS_DEST"/commit-msg "$HOOKS_DEST"/prepare-commit-msg
     git config --global core.hooksPath "$HOOKS_DEST"
     log_info "Global git hooks installed at ${HOOKS_DEST}"
 fi

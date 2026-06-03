@@ -166,17 +166,22 @@ Every commit on every repo
         │
         ▼
 ~/.config/git/hooks/          ← global (core.hooksPath)
-├── pre-commit                ← gitleaks secret scan
+├── pre-commit                ← gitleaks scan + delegate to repo .pre-commit-config.yaml
+├── pre-push                  ← gitleaks range-scan of commits being pushed
 ├── prepare-commit-msg        ← strip AI trailers (early)
-└── commit-msg                ← strip AI trailers (final)
+├── commit-msg                ← strip AI trailers (final)
+└── lib/strip-ai-trailers.sh  ← shared helper sourced by the message hooks
         │
         │  (if project sets core.hooksPath)
         ▼
 scripts/hooks/commit-msg      ← project-level strip
 └── chains back ──────────────▶ ~/.config/git/hooks/commit-msg
 
-AI tools stripped: Claude · Copilot · GPT · OpenAI · Anthropic
-                   Gemini · Codeium · Cursor · Windsurf
+gitleaks-missing policy: pre-commit warns (fail-open), pre-push blocks (fail-closed).
+
+AI tools stripped: Claude · Copilot · GPT · OpenAI · Anthropic · Gemini
+                   Codeium · Cursor · Windsurf · Codex · Aider · Cody
+(also "Generated with <tool>" footers and robot-emoji lines)
 ```
 
 ---
