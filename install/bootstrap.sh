@@ -167,6 +167,23 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
                 log_warn "Some packages failed to install."
                 log_warn "Re-run: brew bundle --file=${BREWFILE} --verbose"
             fi
+
+            # Trust the third-party taps this profile declares. Homebrew is rolling
+            # out tap-trust enforcement; without this, the unattended update agent
+            # could silently fail to upgrade tapped formulae. We already tap and
+            # install from these, so trusting them is an explicit no-op of intent.
+            # (brew trust is a recent feature — skip quietly on older versions.)
+            if brew help trust >/dev/null 2>&1; then
+                while IFS= read -r tap_name; do
+                    [[ -n "$tap_name" ]] || continue
+                    if brew trust "$tap_name" 2>/dev/null; then
+                        log_info "Trusted tap: ${tap_name}"
+                    else
+                        log_warn "Could not trust tap: ${tap_name}"
+                    fi
+                done < <(grep -E '^[[:space:]]*tap[[:space:]]' "$BREWFILE" \
+                         | sed -E 's/^[[:space:]]*tap[[:space:]]+"([^"]+)".*/\1/')
+            fi
         else
             log_warn "Brewfile not found: ${BREWFILE}"
         fi
