@@ -472,6 +472,23 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
             HOMEBREW_PREFIX="$(brew --prefix 2>/dev/null || echo "/opt/homebrew")"
             LAUNCHD_USER="gui/$(id -u)"
 
+            # Clean up stale update agents before reinstalling the current ones:
+            #   * interactive agents — that tier is now on-demand (run update-my-system),
+            #     so any previously-scheduled one is removed.
+            #   * daily agents whose backing script no longer exists — orphans left by an
+            #     earlier install or a project rename (their label changed; the plist lingers).
+            for plist in "${LAUNCH_AGENTS_DIR}"/com.*.update-daily.plist \
+                         "${LAUNCH_AGENTS_DIR}"/com.*.update-interactive.plist; do
+                [[ -f "$plist" ]] || continue
+                stale_label="$(basename "$plist" .plist)"
+                stale_script="$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments:1' "$plist" 2>/dev/null)"
+                if [[ "$stale_label" == *update-interactive ]] || [[ -n "$stale_script" && ! -f "$stale_script" ]]; then
+                    launchctl bootout "${LAUNCHD_USER}/${stale_label}" 2>/dev/null || true
+                    rm -f "$plist"
+                    log_info "Removed stale update agent: ${stale_label}"
+                fi
+            done
+
             for template in "${PROJECT_ROOT}/scripts/launchd/"*.plist.template; do
                 [[ -f "$template" ]] || continue
                 local_name="$(basename "$template" .template)"
@@ -494,6 +511,17 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
                     log_info "Installed launchd agent: ${local_name} (will load on next GUI login)"
                 fi
             done
+
+            # A per-user LaunchAgent only runs while its owner is logged in at the GUI.
+            # If the brew owner (this admin account) is not the console login user,
+            # the agent will never fire — point them at the opt-in LaunchDaemon.
+            console_user="$(stat -f '%Su' /dev/console 2>/dev/null)"
+            if [[ -n "$console_user" && "$console_user" != "$(whoami)" ]]; then
+                log_warn "Update agent installed for '$(whoami)', but the GUI login user is '${console_user}'."
+                log_warn "Per-user agents only run while their owner is logged in, so this may never fire."
+                log_warn "For a multi-account setup, install the LaunchDaemon instead:"
+                log_warn "  scripts/launchd-daemon/com.ns-bootstrap.update-daily.daemon.plist.template"
+            fi
         else
             log_info "Skipping scheduled updates (non-admin user)"
         fi
@@ -508,9 +536,9 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         done
 
         systemctl --user daemon-reload 2>/dev/null || true
+        # Daily unattended update only; the interactive tier is on-demand (run update-my-system).
         systemctl --user enable --now ns-bootstrap-update-daily.timer 2>/dev/null || true
-        systemctl --user enable --now ns-bootstrap-update-interactive.timer 2>/dev/null || true
-        log_info "Enabled systemd update timers"
+        log_info "Enabled systemd daily update timer"
     fi
 fi
 
