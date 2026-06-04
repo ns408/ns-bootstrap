@@ -24,5 +24,8 @@ AGENTS.md
 # Dependencies
 node_modules/
 
+# Local working files (scratch, drafts, handovers — never published)
+temp/
+
 # Misc
 *.log
