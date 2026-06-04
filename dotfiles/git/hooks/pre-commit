@@ -1,11 +1,34 @@
 #!/usr/bin/env bash
-# Global pre-commit hook: scan staged changes for secrets using gitleaks
+# Global pre-commit hook: scan staged changes for secrets, then delegate to the
+# repo's own pre-commit framework if it defines one.
 #
-# Installed by ns-bootstrap bootstrap — applies to all repositories.
+# Installed by ns-bootstrap — applies to all repositories.
 # To bypass for a specific commit: git commit --no-verify
 
-if ! command -v gitleaks &>/dev/null; then
-    exit 0
+# 1. Secret scan. Warn (do not block) if gitleaks is absent so commits still
+#    work on machines without it; the pre-push hook is the fail-closed backstop.
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks protect --staged --no-banner --redact || exit 1
+else
+    echo "WARNING: gitleaks not found; staged changes were NOT scanned for secrets." >&2
+    echo "         install it with: brew install gitleaks" >&2
 fi
 
-gitleaks protect --staged --no-banner --redact
+# 2. Run the repo's pre-commit framework if configured. This lets per-repo hooks
+#    run without each repo calling `pre-commit install` (which cannot coexist
+#    with a global core.hooksPath). Fail-open: skip with a NOTE if not runnable.
+if [ -f ".pre-commit-config.yaml" ]; then
+    pc=""
+    for c in "$PWD/.venv/bin/pre-commit" \
+             "$HOME/.local/share/mise/shims/pre-commit" \
+             "$(command -v pre-commit 2>/dev/null)"; do
+        if [ -n "$c" ] && [ -x "$c" ] && "$c" --version >/dev/null 2>&1; then pc="$c"; break; fi
+    done
+    if [ -n "$pc" ]; then
+        "$pc" run --config .pre-commit-config.yaml || exit 1
+    else
+        echo "NOTE: .pre-commit-config.yaml present but pre-commit not runnable here; repo hooks skipped." >&2
+    fi
+fi
+
+exit 0

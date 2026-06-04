@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Global pre-push hook: scan the commits being pushed for secrets with gitleaks,
+# catching anything already committed locally before it leaves the machine.
+#
+# Installed by ns-bootstrap — applies to all repositories.
+# To bypass for a single push (only if a false positive): git push --no-verify
+
+# Fail closed at the push boundary: refuse to push if we cannot scan.
+if ! command -v gitleaks >/dev/null 2>&1; then
+    echo "BLOCKED: gitleaks not found; refusing to push unscanned commits." >&2
+    echo "         install it with: brew install gitleaks" >&2
+    echo "         bypass once (only if you accept the risk): git push --no-verify" >&2
+    exit 1
+fi
+
+# git's all-zeros SHA sentinel, meaning "no commit on this side" (deletion / new branch).
+zero="0000000000000000000000000000000000000000"
+status=0
+# git feeds pre-push one line per ref on stdin: <local_ref> <local_sha> <remote_ref> <remote_sha>
+while read -r _ local_sha _ remote_sha; do
+    [ -z "${local_sha:-}" ] && continue
+    [ "$local_sha" = "$zero" ] && continue          # branch deletion: nothing to scan
+    if [ "${remote_sha:-$zero}" = "$zero" ]; then
+        log_opts="$local_sha --not --remotes"        # new branch: scan commits not yet on any remote
+    else
+        log_opts="${remote_sha}..${local_sha}"       # update: scan only the new commits
+    fi
+    if ! gitleaks detect --no-banner --redact --log-opts="$log_opts" >/dev/null 2>&1; then
+        echo "BLOCKED: gitleaks flagged a secret in commits being pushed ($log_opts)." >&2
+        echo "         inspect: gitleaks detect --log-opts='$log_opts' --verbose" >&2
+        echo "         bypass once (only if a false positive): git push --no-verify" >&2
+        status=1
+    fi
+done
+
+exit $status

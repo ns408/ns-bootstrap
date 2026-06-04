@@ -112,7 +112,7 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         echo "  oh-my-zsh + custom plugins"
         echo "  Secrets system (1Password / pass)"
         echo "  Scheduled update agents (launchd / systemd)"
-        echo "  Global git hooks (gitleaks pre-commit)"
+        echo "  Global git hooks (gitleaks pre-commit + pre-push, AI-trailer stripping)"
         echo ""
         echo -e "${GREEN}No changes were made.${NC}"
         exit 0
@@ -166,6 +166,23 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
             if ! HOMEBREW_BUNDLE_NO_LOCK=1 brew bundle --file="$BREWFILE" --verbose; then
                 log_warn "Some packages failed to install."
                 log_warn "Re-run: brew bundle --file=${BREWFILE} --verbose"
+            fi
+
+            # Trust the third-party taps this profile declares. Homebrew is rolling
+            # out tap-trust enforcement; without this, the unattended update agent
+            # could silently fail to upgrade tapped formulae. We already tap and
+            # install from these, so trusting them is an explicit no-op of intent.
+            # (brew trust is a recent feature — skip quietly on older versions.)
+            if brew help trust >/dev/null 2>&1; then
+                while IFS= read -r tap_name; do
+                    [[ -n "$tap_name" ]] || continue
+                    if brew trust "$tap_name" 2>/dev/null; then
+                        log_info "Trusted tap: ${tap_name}"
+                    else
+                        log_warn "Could not trust tap: ${tap_name}"
+                    fi
+                done < <(grep -E '^[[:space:]]*tap[[:space:]]' "$BREWFILE" \
+                         | sed -E 's/^[[:space:]]*tap[[:space:]]+"([^"]+)".*/\1/')
             fi
         else
             log_warn "Brewfile not found: ${BREWFILE}"
@@ -257,7 +274,7 @@ else
         echo "Would configure:"
         echo "  oh-my-zsh + custom plugins"
         echo "  Secrets system (1Password / pass)"
-        echo "  Global git hooks (gitleaks pre-commit)"
+        echo "  Global git hooks (gitleaks pre-commit + pre-push, AI-trailer stripping)"
         echo ""
         echo -e "${GREEN}No changes were made.${NC}"
         exit 0
@@ -270,8 +287,11 @@ HOOKS_SRC="${PROJECT_ROOT}/dotfiles/git/hooks"
 HOOKS_DEST="${HOME}/.config/git/hooks"
 if [[ -d "$HOOKS_SRC" ]]; then
     mkdir -p "$HOOKS_DEST"
-    cp "$HOOKS_SRC"/* "$HOOKS_DEST/"
-    chmod +x "$HOOKS_DEST"/*
+    # -R so the lib/ subdir (shared helpers) is copied, not just top-level files.
+    cp -R "$HOOKS_SRC"/. "$HOOKS_DEST/"
+    # Only the hook entrypoints need +x; sourced helpers under lib/ do not.
+    chmod +x "$HOOKS_DEST"/pre-commit "$HOOKS_DEST"/pre-push \
+             "$HOOKS_DEST"/commit-msg "$HOOKS_DEST"/prepare-commit-msg
     git config --global core.hooksPath "$HOOKS_DEST"
     log_info "Global git hooks installed at ${HOOKS_DEST}"
 fi
@@ -469,6 +489,23 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
             HOMEBREW_PREFIX="$(brew --prefix 2>/dev/null || echo "/opt/homebrew")"
             LAUNCHD_USER="gui/$(id -u)"
 
+            # Clean up stale update agents before reinstalling the current ones:
+            #   * interactive agents — that tier is now on-demand (run update-my-system),
+            #     so any previously-scheduled one is removed.
+            #   * daily agents whose backing script no longer exists — orphans left by an
+            #     earlier install or a project rename (their label changed; the plist lingers).
+            for plist in "${LAUNCH_AGENTS_DIR}"/com.*.update-daily.plist \
+                         "${LAUNCH_AGENTS_DIR}"/com.*.update-interactive.plist; do
+                [[ -f "$plist" ]] || continue
+                stale_label="$(basename "$plist" .plist)"
+                stale_script="$(/usr/libexec/PlistBuddy -c 'Print :ProgramArguments:1' "$plist" 2>/dev/null)"
+                if [[ "$stale_label" == *update-interactive ]] || [[ -n "$stale_script" && ! -f "$stale_script" ]]; then
+                    launchctl bootout "${LAUNCHD_USER}/${stale_label}" 2>/dev/null || true
+                    rm -f "$plist"
+                    log_info "Removed stale update agent: ${stale_label}"
+                fi
+            done
+
             for template in "${PROJECT_ROOT}/scripts/launchd/"*.plist.template; do
                 [[ -f "$template" ]] || continue
                 local_name="$(basename "$template" .template)"
@@ -491,6 +528,17 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
                     log_info "Installed launchd agent: ${local_name} (will load on next GUI login)"
                 fi
             done
+
+            # A per-user LaunchAgent only runs while its owner is logged in at the GUI.
+            # If the brew owner (this admin account) is not the console login user,
+            # the agent will never fire — point them at the opt-in LaunchDaemon.
+            console_user="$(stat -f '%Su' /dev/console 2>/dev/null)"
+            if [[ -n "$console_user" && "$console_user" != "$(whoami)" ]]; then
+                log_warn "Update agent installed for '$(whoami)', but the GUI login user is '${console_user}'."
+                log_warn "Per-user agents only run while their owner is logged in, so this may never fire."
+                log_warn "For a multi-account setup, install the LaunchDaemon instead:"
+                log_warn "  scripts/launchd-daemon/com.ns-bootstrap.update-daily.daemon.plist.template"
+            fi
         else
             log_info "Skipping scheduled updates (non-admin user)"
         fi
@@ -505,9 +553,9 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         done
 
         systemctl --user daemon-reload 2>/dev/null || true
+        # Daily unattended update only; the interactive tier is on-demand (run update-my-system).
         systemctl --user enable --now ns-bootstrap-update-daily.timer 2>/dev/null || true
-        systemctl --user enable --now ns-bootstrap-update-interactive.timer 2>/dev/null || true
-        log_info "Enabled systemd update timers"
+        log_info "Enabled systemd daily update timer"
     fi
 fi
 

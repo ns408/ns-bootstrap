@@ -166,17 +166,22 @@ Every commit on every repo
         │
         ▼
 ~/.config/git/hooks/          ← global (core.hooksPath)
-├── pre-commit                ← gitleaks secret scan
+├── pre-commit                ← gitleaks scan + delegate to repo .pre-commit-config.yaml
+├── pre-push                  ← gitleaks range-scan of commits being pushed
 ├── prepare-commit-msg        ← strip AI trailers (early)
-└── commit-msg                ← strip AI trailers (final)
+├── commit-msg                ← strip AI trailers (final)
+└── lib/strip-ai-trailers.sh  ← shared helper sourced by the message hooks
         │
         │  (if project sets core.hooksPath)
         ▼
 scripts/hooks/commit-msg      ← project-level strip
 └── chains back ──────────────▶ ~/.config/git/hooks/commit-msg
 
-AI tools stripped: Claude · Copilot · GPT · OpenAI · Anthropic
-                   Gemini · Codeium · Cursor · Windsurf
+gitleaks-missing policy: pre-commit warns (fail-open), pre-push blocks (fail-closed).
+
+AI tools stripped: Claude · Copilot · GPT · OpenAI · Anthropic · Gemini
+                   Codeium · Cursor · Windsurf · Codex · Aider · Cody
+(also "Generated with <tool>" footers and robot-emoji lines)
 ```
 
 ---
@@ -209,22 +214,47 @@ AI tools stripped: Claude · Copilot · GPT · OpenAI · Anthropic
 
 ## Scheduled Updates
 
-```
-07:00 ─── update-brew-daily ─────────────────────────────────────────
-          brew upgrade (formulae only, non-interactive)
+Two tiers, split by execution context (what can run without a human/session),
+not by clock:
 
-07:30 ─── update-my-system ──────────────────────────────────────────
-          In new tmux session (admin account only):
-          ├── brew upgrade --greedy (casks)
-          ├── mise upgrade
-          ├── omz update
-          ├── softwareupdate --list
-          └── mas upgrade (App Store)
-
-Platform agents:
-  macOS  → ~/Library/LaunchAgents/com.ns-bootstrap.*.plist
-  Ubuntu → ~/.config/systemd/user/ns-bootstrap-*.timer
 ```
+UNATTENDED (scheduled) ─── update-brew-daily ── 07:00 ───────────────
+          brew update + upgrade (formulae only) + cleanup
+          Headless-safe, system-wide. The only auto-scheduled tier.
+
+ON-DEMAND (run yourself) ─ update-my-system ────────────────────────
+          Needs a logged-in GUI session (and sometimes sudo):
+          ├── brew update + upgrade (formulae)
+          ├── brew upgrade --cask (GUI apps)
+          ├── mas upgrade        (App Store — needs signed-in GUI session)
+          ├── mise / omz upgrade (per-user tools)
+          ├── Microsoft AutoUpdate
+          └── softwareupdate --list (install stays manual: update-macos-install)
+
+Platform agents (daily tier only):
+  macOS  → ~/Library/LaunchAgents/com.ns-bootstrap.update-daily.plist
+  Ubuntu → ~/.config/systemd/user/ns-bootstrap-update-daily.timer
+```
+
+Why mas / casks / macOS installs are NOT auto-scheduled: `mas` needs an
+interactive App Store session, some casks prompt for sudo, and macOS installs
+can reboot. These belong in the on-demand `update-my-system`, run when you are
+at the machine.
+
+### Multi-account caveat (brew owner != GUI login user)
+
+A per-user LaunchAgent only runs while its owner is logged in at the GUI. If the
+account that owns Homebrew is not your daily GUI login (a two-account admin/dev
+split), the daily LaunchAgent never fires. Use the opt-in LaunchDaemon instead:
+
+```
+scripts/launchd-daemon/com.ns-bootstrap.update-daily.daemon.plist.template
+```
+
+It runs on schedule as the brew owner regardless of who is logged in (header
+comment in the template has the install commands). `bootstrap` warns when it
+detects this mismatch, and removes orphaned update agents left by a prior
+install or a project rename.
 
 ---
 
@@ -281,7 +311,8 @@ ns-bootstrap/
 │   └── bootstrap-secrets.sh
 ├── scripts/
 │   ├── scheduled-update-{daily,interactive}.sh
-│   ├── launchd/*.plist.template
+│   ├── launchd/*.plist.template          # daily LaunchAgent (default)
+│   ├── launchd-daemon/*.daemon.plist.template  # opt-in LaunchDaemon (multi-account)
 │   ├── systemd/*.{service,timer}
 │   └── hooks/commit-msg
 ├── tests/

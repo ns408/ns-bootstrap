@@ -36,7 +36,12 @@ update-my-system() {
   {
     echo "=== System Update Started: $(date) ==="
 
-    # Homebrew casks (non-self-updating apps only)
+    # Homebrew formulae (CLI tools) — refresh metadata then upgrade
+    echo -e "\n--- Homebrew Formulae ---"
+    brew update || true
+    brew upgrade
+
+    # Homebrew casks (GUI apps)
     echo -e "\n--- Homebrew Casks ---"
     brew upgrade --cask
     brew cleanup --prune=1

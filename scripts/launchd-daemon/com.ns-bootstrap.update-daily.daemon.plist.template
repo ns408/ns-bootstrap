@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Opt-in LaunchDaemon for the daily unattended update (brew formulae).
+
+  Use this INSTEAD of the per-user LaunchAgent when the account that owns
+  Homebrew is not the account you log into at the GUI (a two-account setup).
+  A LaunchDaemon runs on schedule regardless of who is logged in, executing
+  as ${UPDATE_RUN_AS_USER} (set this to the Homebrew owner).
+
+  Install manually (see .ai docs for the full runbook):
+    sed -e "s|\${PROJECT_ROOT}|/path/to/ns-bootstrap|g" \
+        -e "s|\${HOMEBREW_PREFIX}|$(brew --prefix)|g" \
+        -e "s|\${UPDATE_RUN_AS_USER}|<brew-owner>|g" \
+        -e "s|\${UPDATE_RUN_AS_HOME}|/Users/<brew-owner>|g" \
+        this.template | sudo tee /Library/LaunchDaemons/com.ns-bootstrap.update-daily.plist
+    sudo chown root:wheel /Library/LaunchDaemons/com.ns-bootstrap.update-daily.plist
+    sudo chmod 644        /Library/LaunchDaemons/com.ns-bootstrap.update-daily.plist
+    sudo launchctl bootstrap system /Library/LaunchDaemons/com.ns-bootstrap.update-daily.plist
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ns-bootstrap.update-daily</string>
+
+    <!-- Run as the Homebrew owner so brew has write permission. -->
+    <key>UserName</key>
+    <string>${UPDATE_RUN_AS_USER}</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>${PROJECT_ROOT}/scripts/scheduled-update-daily.sh</string>
+    </array>
+
+    <!-- Fires daily at 07:00 and once at load; no GUI session required. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>${UPDATE_RUN_AS_HOME}/.local/log/launchd-update-daily.log</string>
+    <key>StandardErrorPath</key>
+    <string>${UPDATE_RUN_AS_HOME}/.local/log/launchd-update-daily.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>${HOMEBREW_PREFIX}/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>${UPDATE_RUN_AS_HOME}</string>
+    </dict>
+</dict>
+</plist>
