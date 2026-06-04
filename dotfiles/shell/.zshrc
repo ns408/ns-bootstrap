@@ -115,3 +115,8 @@ command -v atuin &>/dev/null && eval "$(atuin init zsh)"
 
 # ─── Starship prompt (must be last — sets PS1) ──────────────────
 command -v starship &>/dev/null && eval "$(starship init zsh)"
+
+# ─── Machine-local overrides (untracked) ────────────────────────
+# Personal, per-machine config and PATH additions go here so tool installers
+# (e.g. LM Studio's `lms`) do not write into this version-controlled dotfile.
+[ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
