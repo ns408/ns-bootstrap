@@ -196,19 +196,32 @@ sudo scutil --set LocalHostName "$YOUR_HOSTNAME"
 ### Remote Desktop (Ubuntu, optional)
 
 Not part of the default bootstrap. `install/ubuntu/install-remote-desktop.sh`
-installs an XFCE desktop and an `xrdp` server, then restricts port 3389 to your
-local subnet via `ufw` (allowing SSH first so it can't lock you out):
+sets up an `xrdp` server, then restricts port 3389 to your local subnet via
+`ufw` (allowing SSH first so it can't lock you out):
 
 ```bash
 bash install/ubuntu/install-remote-desktop.sh          # interactive
 bash install/ubuntu/install-remote-desktop.sh --yes    # no prompt
+DESKTOP=xfce bash install/ubuntu/install-remote-desktop.sh        # force XFCE
 SUBNET=10.0.0.0/24 bash install/ubuntu/install-remote-desktop.sh  # override subnet
 ```
 
-The subnet is auto-detected; override it with `SUBNET=<cidr>` for multi-NIC
-hosts. For an untrusted network, prefer an SSH tunnel over the LAN rule:
-`ssh -L 3389:localhost:3389 user@host`, then connect your RDP client to
-`localhost:3389`.
+- **Desktop:** `DESKTOP=auto` (default) uses your existing GNOME if installed,
+  otherwise installs lightweight XFCE. Force one with `DESKTOP=gnome|xfce`.
+  On a machine you already run with GNOME, use GNOME to avoid two conflicting
+  desktops.
+- **Subnet:** auto-detected; override with `SUBNET=<cidr>` for multi-NIC hosts.
+- **Polkit:** the script installs an override that silences the Ubuntu 24.04
+  "authentication required to create a color profile" popups over RDP.
+- **One session per user:** do not stay logged into the physical console as the
+  same user you RDP in as. GNOME/XFCE refuse two simultaneous sessions and you
+  get a black screen or crash (`loginctl list-sessions` to check).
+- **GNOME black screen:** if the GNOME Xorg backend shows a black screen (a known
+  24.04 bug), pick the `Xvnc` session from the xrdp login dropdown instead of
+  `Xorg`.
+- **Untrusted network:** prefer an SSH tunnel over the LAN rule:
+  `ssh -L 3389:localhost:3389 user@host`, then point your RDP client at
+  `localhost:3389`.
 
 ## Platform Compatibility
 

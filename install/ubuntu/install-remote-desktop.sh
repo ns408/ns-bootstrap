@@ -5,9 +5,14 @@
 # restricts port 3389 to the local subnet. For untrusted networks prefer an SSH
 # tunnel (ssh -L 3389:localhost:3389 user@host) over the LAN firewall rule.
 #
+# Desktop is selectable via DESKTOP=gnome|xfce|auto (default auto: use GNOME if
+# already installed, else install XFCE). On a machine you already use with GNOME,
+# the GNOME path avoids running two conflicting desktop environments.
+#
 # Usage:
 #   bash install/ubuntu/install-remote-desktop.sh           # interactive
 #   bash install/ubuntu/install-remote-desktop.sh --yes     # no prompt
+#   DESKTOP=xfce bash install/ubuntu/install-remote-desktop.sh
 #   SUBNET=10.0.0.0/24 bash install/ubuntu/install-remote-desktop.sh
 set -euo pipefail
 
@@ -49,24 +54,49 @@ if [[ -z "${SUBNET:-}" ]]; then
     exit 1
 fi
 
+# --- Choose desktop (DESKTOP=gnome|xfce|auto) ---
+DESKTOP="${DESKTOP:-auto}"
+if [[ "$DESKTOP" == "auto" ]]; then
+    if command -v gnome-session &>/dev/null; then
+        DESKTOP=gnome
+    else
+        DESKTOP=xfce
+    fi
+fi
+case "$DESKTOP" in
+    gnome|xfce) ;;
+    *) log_err "Invalid DESKTOP='${DESKTOP}'. Use gnome, xfce, or auto."; exit 1 ;;
+esac
+if [[ "$DESKTOP" == "gnome" ]] && ! command -v gnome-session &>/dev/null; then
+    log_err "DESKTOP=gnome but gnome-session is not installed."
+    log_err "Install GNOME first (e.g. sudo apt install ubuntu-desktop-minimal) or use DESKTOP=xfce."
+    exit 1
+fi
+
 # --- Confirmation ---
-log_warn "This installs a desktop (XFCE) and an RDP server (xrdp)."
-log_warn "Port 3389/tcp will be opened to: ${SUBNET}"
+log_warn "This sets up remote desktop using: ${DESKTOP^^}"
+[[ "$DESKTOP" == "xfce" ]] && log_warn "  XFCE will be installed (pulls in several hundred MB)."
+[[ "$DESKTOP" == "gnome" ]] && log_warn "  Uses your existing GNOME (no XFCE installed)."
+log_warn "An RDP server (xrdp) will run, port 3389/tcp opened to: ${SUBNET}"
 log_warn "Desktop session will be configured for user: ${TARGET_USER}"
 if [[ "$ASSUME_YES" != true ]]; then
     read -r -p "Proceed? [y/N] " reply
     [[ "$reply" =~ ^[Yy]$ ]] || { log_info "Aborted."; exit 0; }
 fi
 
-# --- Desktop environment (XFCE: lightest, best xrdp compatibility) ---
-log_info "Checking XFCE desktop..."
-if dpkg -l xfce4 2>/dev/null | grep -q '^ii'; then
-    log_info "XFCE already installed."
+# --- Desktop environment ---
+if [[ "$DESKTOP" == "xfce" ]]; then
+    log_info "Checking XFCE desktop..."
+    if dpkg -l xfce4 2>/dev/null | grep -q '^ii'; then
+        log_info "XFCE already installed."
+    else
+        log_info "Installing XFCE desktop (this pulls in several hundred MB)..."
+        sudo apt-get update
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y xfce4 xfce4-goodies dbus-x11
+        log_info "XFCE installed."
+    fi
 else
-    log_info "Installing XFCE desktop (this pulls in several hundred MB)..."
-    sudo apt-get update
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y xfce4 xfce4-goodies dbus-x11
-    log_info "XFCE installed."
+    log_info "Using existing GNOME desktop (no XFCE install)."
 fi
 
 # --- xrdp ---
@@ -79,17 +109,46 @@ else
     log_info "xrdp installed."
 fi
 
-# --- Session config: XFCE for the target user, cert group for xrdp ---
-log_info "Configuring xrdp session for ${TARGET_USER}..."
-if [[ -f "${TARGET_HOME}/.xsession" ]] && grep -q '^startxfce4' "${TARGET_HOME}/.xsession"; then
-    log_info ".xsession already set to startxfce4."
+# --- Session config: write ~/.xsession for the chosen desktop ---
+log_info "Configuring xrdp ${DESKTOP^^} session for ${TARGET_USER}..."
+XS="${TARGET_HOME}/.xsession"
+if [[ "$DESKTOP" == "gnome" ]]; then
+    # GNOME over xrdp must run an Xorg (not Wayland) session.
+    read -r -d '' XS_CONTENT <<'EOF' || true
+export GNOME_SHELL_SESSION_MODE=ubuntu
+export XDG_CURRENT_DESKTOP=ubuntu:GNOME
+export XDG_SESSION_TYPE=x11
+exec /usr/bin/gnome-session
+EOF
 else
-    echo "startxfce4" | sudo tee "${TARGET_HOME}/.xsession" > /dev/null
-    sudo chown "${TARGET_USER}:${TARGET_USER}" "${TARGET_HOME}/.xsession"
-    log_info "Wrote ${TARGET_HOME}/.xsession"
+    XS_CONTENT='exec startxfce4'
+fi
+if [[ -f "$XS" ]] && [[ "$(cat "$XS" 2>/dev/null)" == "$XS_CONTENT" ]]; then
+    log_info ".xsession already configured for ${DESKTOP}."
+else
+    printf '%s\n' "$XS_CONTENT" | sudo tee "$XS" > /dev/null
+    sudo chown "${TARGET_USER}:${TARGET_USER}" "$XS"
+    log_info "Wrote ${XS}"
 fi
 # Fixes black-screen-on-login from cert permission errors (idempotent).
 sudo usermod -aG ssl-cert xrdp
+
+# --- Polkit: stop the colord "authentication required" popups over RDP ---
+# (Known Ubuntu 24.04 regression; affects GNOME and XFCE remote sessions alike.)
+POLKIT_RULE=/etc/polkit-1/rules.d/45-allow-colord.rules
+if [[ -f "$POLKIT_RULE" ]]; then
+    log_info "Polkit color-manager override already present."
+else
+    log_info "Installing polkit override to suppress color-profile auth popups..."
+    sudo tee "$POLKIT_RULE" > /dev/null <<'EOF'
+polkit.addRule(function(action, subject) {
+    if (action.id.indexOf("org.freedesktop.color-manager.") == 0) {
+        return polkit.Result.YES;
+    }
+});
+EOF
+    sudo systemctl restart polkit 2>/dev/null || true
+fi
 
 # --- Firewall: ufw, LAN-only, lockout-safe (allow SSH BEFORE enabling) ---
 log_info "Configuring firewall (ufw)..."
@@ -122,10 +181,19 @@ sudo systemctl restart xrdp
 HOST_IP=$(ip -o -f inet addr show "${IFACE:-}" 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -1)
 echo
 log_info "Remote desktop ready."
+log_info "  Desktop : ${DESKTOP^^}"
 log_info "  Service : $(systemctl is-active xrdp)"
 log_info "  Listen  : 3389/tcp restricted to ${SUBNET}"
 log_info "  Connect : RDP client (Microsoft Remote Desktop / Remmina) -> ${HOST_IP:-<host-ip>}:3389"
 log_info "  Login   : user '${TARGET_USER}' with its system password"
+echo
+log_warn "Do NOT be logged into the console as '${TARGET_USER}' at the same time:"
+log_warn "  GNOME/XFCE refuse two simultaneous sessions for one user (black screen/crash)."
+log_warn "  Check with: loginctl list-sessions"
+if [[ "$DESKTOP" == "gnome" ]]; then
+    log_warn "If GNOME shows a black screen (a known 24.04 Xorg-backend bug), pick the"
+    log_warn "  'Xvnc' session from the dropdown on the xrdp login page instead of 'Xorg'."
+fi
 echo
 log_info "To revert:"
 log_info "  sudo systemctl disable --now xrdp"
