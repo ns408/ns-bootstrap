@@ -109,6 +109,25 @@ else
     log_info "xrdp installed."
 fi
 
+# --- Disable xorgxrdp glamor (GPU) acceleration for broad compatibility ---
+# On old/integrated GPUs glamor's EGL shaders fail to compile, breaking the
+# framebuffer-to-client path and producing a black screen. Forcing software
+# rendering is rock-solid everywhere and the cost is negligible for a 2D desktop
+# over LAN.
+XORG_CONF=/etc/X11/xrdp/xorg.conf
+if [[ -f "$XORG_CONF" ]]; then
+    if grep -q 'Option "DRMDevice" ""' "$XORG_CONF" && grep -q 'Option "DRI3" "0"' "$XORG_CONF"; then
+        log_info "xorgxrdp glamor already disabled."
+    else
+        log_info "Disabling xorgxrdp glamor (software rendering) for GPU compatibility..."
+        [[ -f "${XORG_CONF}.bak" ]] || sudo cp "$XORG_CONF" "${XORG_CONF}.bak"
+        sudo sed -i -E 's|(Option +"DRMDevice" +)"[^"]*"|\1""|; s|(Option +"DRI3" +)"[^"]*"|\1"0"|' "$XORG_CONF"
+        log_info "Glamor disabled in ${XORG_CONF}."
+    fi
+else
+    log_warn "${XORG_CONF} not found; skipping glamor tweak."
+fi
+
 # --- Session config: write ~/.xsession for the chosen desktop ---
 log_info "Configuring xrdp ${DESKTOP^^} session for ${TARGET_USER}..."
 XS="${TARGET_HOME}/.xsession"
