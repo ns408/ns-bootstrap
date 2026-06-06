@@ -101,6 +101,19 @@ if [[ "$DESKTOP" == "xfce" ]]; then
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gnome-keyring libsecret-1-0 seahorse
         log_info "gnome-keyring installed."
     fi
+    # Make XFCE the system default session manager. If ~/.xsession is ever missing
+    # or drifts, Ubuntu falls back to x-session-manager (GNOME by default), which
+    # crashes on GPUs without acceleration. Pin it to XFCE to prevent that silent
+    # fallback. (GDM console logins are unaffected; they pick the session directly.)
+    if command -v xfce4-session &>/dev/null && \
+       update-alternatives --list x-session-manager 2>/dev/null | grep -qx /usr/bin/xfce4-session; then
+        if [[ "$(readlink -f /etc/alternatives/x-session-manager 2>/dev/null)" == /usr/bin/xfce4-session ]]; then
+            log_info "x-session-manager already defaults to XFCE."
+        else
+            log_info "Pinning x-session-manager default to XFCE (prevents GNOME fallback)..."
+            sudo update-alternatives --set x-session-manager /usr/bin/xfce4-session
+        fi
+    fi
 else
     log_info "Using existing GNOME desktop (no XFCE install)."
 fi

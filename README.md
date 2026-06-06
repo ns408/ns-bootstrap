@@ -212,6 +212,10 @@ SUBNET=10.0.0.0/24 bash install/ubuntu/install-remote-desktop.sh  # override sub
   rendering) so the X backend works on any GPU. GNOME Shell crashes on software
   GL, so `DESKTOP=gnome` only works on hosts with functioning GPU acceleration;
   everywhere else stick with the XFCE default.
+- **Session fallback:** in the XFCE path the script pins the system default
+  session manager to XFCE. If `~/.xsession` ever goes missing, xrdp would
+  otherwise fall back to GNOME and black-screen/crash on a GPU-less host; pinning
+  prevents that silent fallback.
 - **Subnet:** auto-detected; override with `SUBNET=<cidr>` for multi-NIC hosts.
 - **Polkit:** the script installs an override that silences the Ubuntu 24.04
   "authentication required to create a color profile" popups over RDP.
