@@ -193,6 +193,23 @@ sudo scutil --set LocalHostName "$YOUR_HOSTNAME"
 - **Enable FileVault:** `sudo fdesetup enable`
 - **Disable Homebrew Analytics:** `brew analytics off`
 
+### Remote Desktop (Ubuntu, optional)
+
+Not part of the default bootstrap. `install/ubuntu/install-remote-desktop.sh`
+installs an XFCE desktop and an `xrdp` server, then restricts port 3389 to your
+local subnet via `ufw` (allowing SSH first so it can't lock you out):
+
+```bash
+bash install/ubuntu/install-remote-desktop.sh          # interactive
+bash install/ubuntu/install-remote-desktop.sh --yes    # no prompt
+SUBNET=10.0.0.0/24 bash install/ubuntu/install-remote-desktop.sh  # override subnet
+```
+
+The subnet is auto-detected; override it with `SUBNET=<cidr>` for multi-NIC
+hosts. For an untrusted network, prefer an SSH tunnel over the LAN rule:
+`ssh -L 3389:localhost:3389 user@host`, then connect your RDP client to
+`localhost:3389`.
+
 ## Platform Compatibility
 
 | Platform | Architecture | Status |
