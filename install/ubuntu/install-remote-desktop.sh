@@ -92,6 +92,15 @@ if [[ "$DESKTOP" == "xfce" ]]; then
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y xfce4 xfce4-goodies dbus-x11
         log_info "XFCE installed."
     fi
+    # XFCE has no Secret Service of its own; without one, Chromium/Electron apps
+    # warn the OS keyring is unavailable and fall back to plaintext storage.
+    if dpkg -l gnome-keyring 2>/dev/null | grep -q '^ii'; then
+        log_info "gnome-keyring already installed."
+    else
+        log_info "Installing gnome-keyring (Secret Service for XFCE)..."
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gnome-keyring libsecret-1-0 seahorse
+        log_info "gnome-keyring installed."
+    fi
 else
     log_info "Using existing GNOME desktop (no XFCE install)."
 fi
@@ -166,6 +175,29 @@ EOF
     sudo systemctl restart polkit 2>/dev/null || true
 fi
 
+# --- gnome-keyring auto-unlock for XFCE/xrdp (Secret Service via PAM) ---
+# GNOME console logins unlock the keyring via PAM; XFCE-over-xrdp does not, so
+# Chromium/Electron apps fall back to plaintext storage. Hook pam_gnome_keyring
+# into xrdp-sesman so the keyring unlocks with the login password. XFCE only;
+# the GNOME path already handles its own keyring.
+if [[ "$DESKTOP" == "xfce" ]]; then
+    PAM_FILE=/etc/pam.d/xrdp-sesman
+    if [[ -f "$PAM_FILE" ]] && grep -q 'pam_gnome_keyring.so' "$PAM_FILE"; then
+        log_info "pam_gnome_keyring already configured in ${PAM_FILE}."
+    elif [[ -f "$PAM_FILE" ]]; then
+        log_info "Adding pam_gnome_keyring hooks to ${PAM_FILE}..."
+        sudo tee -a "$PAM_FILE" > /dev/null <<'EOF'
+
+# gnome-keyring auto-unlock for remote (xrdp) sessions
+auth     optional  pam_gnome_keyring.so
+session  optional  pam_gnome_keyring.so auto_start
+EOF
+        log_warn "Keyring auto-unlocks only if the keyring password matches the login password."
+    else
+        log_warn "${PAM_FILE} not found; skipping keyring PAM hook (is xrdp installed?)."
+    fi
+fi
+
 # --- Firewall: ufw, LAN-only, lockout-safe (allow SSH BEFORE enabling) ---
 log_info "Configuring firewall (ufw)..."
 if ! command -v ufw &>/dev/null; then
@@ -209,6 +241,10 @@ log_warn "  Check with: loginctl list-sessions"
 if [[ "$DESKTOP" == "gnome" ]]; then
     log_warn "If GNOME shows a black screen (a known 24.04 Xorg-backend bug), pick the"
     log_warn "  'Xvnc' session from the dropdown on the xrdp login page instead of 'Xorg'."
+fi
+if [[ "$DESKTOP" == "xfce" ]]; then
+    log_info "Keyring: unlocks automatically when its password matches the login password."
+    log_info "  Restart already-running apps (or reconnect) for the keyring to take effect."
 fi
 echo
 log_info "To revert:"
