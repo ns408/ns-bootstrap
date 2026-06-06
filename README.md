@@ -200,18 +200,18 @@ sets up an `xrdp` server, then restricts port 3389 to your local subnet via
 `ufw` (allowing SSH first so it can't lock you out):
 
 ```bash
-bash install/ubuntu/install-remote-desktop.sh          # interactive
+bash install/ubuntu/install-remote-desktop.sh          # interactive (XFCE)
 bash install/ubuntu/install-remote-desktop.sh --yes    # no prompt
-DESKTOP=xfce bash install/ubuntu/install-remote-desktop.sh        # force XFCE
+DESKTOP=gnome bash install/ubuntu/install-remote-desktop.sh      # opt into GNOME
 SUBNET=10.0.0.0/24 bash install/ubuntu/install-remote-desktop.sh  # override subnet
 ```
 
-- **Desktop:** `DESKTOP=auto` (default) uses your existing GNOME if installed,
-  otherwise installs lightweight XFCE. Force one with `DESKTOP=gnome|xfce`.
+- **Desktop:** defaults to lightweight **XFCE** (most reliable over RDP). GNOME
+  is opt-in via `DESKTOP=gnome`.
 - **GPU acceleration:** the script disables xorgxrdp glamor (forces software
-  rendering) so the X backend works on any GPU. On machines **without working
-  GPU acceleration** (old or integrated GPUs), GNOME Shell crashes on software
-  GL: use `DESKTOP=xfce`. Reserve GNOME for hosts with functioning GPU accel.
+  rendering) so the X backend works on any GPU. GNOME Shell crashes on software
+  GL, so `DESKTOP=gnome` only works on hosts with functioning GPU acceleration;
+  everywhere else stick with the XFCE default.
 - **Subnet:** auto-detected; override with `SUBNET=<cidr>` for multi-NIC hosts.
 - **Polkit:** the script installs an override that silences the Ubuntu 24.04
   "authentication required to create a color profile" popups over RDP.

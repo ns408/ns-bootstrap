@@ -5,14 +5,14 @@
 # restricts port 3389 to the local subnet. For untrusted networks prefer an SSH
 # tunnel (ssh -L 3389:localhost:3389 user@host) over the LAN firewall rule.
 #
-# Desktop is selectable via DESKTOP=gnome|xfce|auto (default auto: use GNOME if
-# already installed, else install XFCE). On a machine you already use with GNOME,
-# the GNOME path avoids running two conflicting desktop environments.
+# Desktop is selectable via DESKTOP=xfce|gnome|auto (default XFCE: most reliable
+# over RDP). GNOME is opt-in (DESKTOP=gnome) and only works on hosts with usable
+# GPU acceleration; it crashes on software-rendered GL.
 #
 # Usage:
-#   bash install/ubuntu/install-remote-desktop.sh           # interactive
+#   bash install/ubuntu/install-remote-desktop.sh           # interactive (XFCE)
 #   bash install/ubuntu/install-remote-desktop.sh --yes     # no prompt
-#   DESKTOP=xfce bash install/ubuntu/install-remote-desktop.sh
+#   DESKTOP=gnome bash install/ubuntu/install-remote-desktop.sh
 #   SUBNET=10.0.0.0/24 bash install/ubuntu/install-remote-desktop.sh
 set -euo pipefail
 
@@ -54,15 +54,12 @@ if [[ -z "${SUBNET:-}" ]]; then
     exit 1
 fi
 
-# --- Choose desktop (DESKTOP=gnome|xfce|auto) ---
+# --- Choose desktop (DESKTOP=xfce|gnome|auto) ---
+# Default to XFCE: it is the most reliable desktop over RDP (no GL compositing,
+# works on software rendering). GNOME is opt-in via DESKTOP=gnome and only
+# suitable on hosts with working GPU acceleration.
 DESKTOP="${DESKTOP:-auto}"
-if [[ "$DESKTOP" == "auto" ]]; then
-    if command -v gnome-session &>/dev/null; then
-        DESKTOP=gnome
-    else
-        DESKTOP=xfce
-    fi
-fi
+[[ "$DESKTOP" == "auto" ]] && DESKTOP=xfce
 case "$DESKTOP" in
     gnome|xfce) ;;
     *) log_err "Invalid DESKTOP='${DESKTOP}'. Use gnome, xfce, or auto."; exit 1 ;;
