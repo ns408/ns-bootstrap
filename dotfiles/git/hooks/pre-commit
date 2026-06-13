@@ -2,13 +2,21 @@
 # Global pre-commit hook: scan staged changes for secrets, then delegate to the
 # repo's own pre-commit framework if it defines one.
 #
-# Installed by ns-bootstrap — applies to all repositories.
+# Installed by ns-bootstrap; applies to all repositories.
 # To bypass for a specific commit: git commit --no-verify
 
 # 1. Secret scan. Warn (do not block) if gitleaks is absent so commits still
 #    work on machines without it; the pre-push hook is the fail-closed backstop.
 if command -v gitleaks >/dev/null 2>&1; then
-    gitleaks protect --staged --no-banner --redact || exit 1
+    if ! gitleaks protect --staged --no-banner --redact --log-level error -v; then
+        {
+            echo
+            echo "COMMIT BLOCKED: a secret was detected in your staged changes (finding above)."
+            echo "  Fix:      git restore --staged <file>   (or move the value into .env, which is gitignored)"
+            echo "  Override: git commit --no-verify         (discouraged; the pre-push hook and CI still scan)"
+        } >&2
+        exit 1
+    fi
 else
     echo "WARNING: gitleaks not found; staged changes were NOT scanned for secrets." >&2
     echo "         install it with: brew install gitleaks" >&2
