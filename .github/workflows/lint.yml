@@ -22,6 +22,8 @@ jobs:
           scandir: .
           severity: warning
           ignore_paths: dotfiles/shell
+          # recprompt.sh is zsh-only (shellcheck has no zsh mode); linted via zsh -n.
+          ignore_names: recprompt.sh
         env:
           SHELLCHECK_OPTS: --shell=bash --exclude=SC1090,SC1091
 
@@ -36,6 +38,9 @@ jobs:
 
       - name: Check .zprofile syntax
         run: zsh -n dotfiles/shell/.zprofile
+
+      - name: Check zsh-only function files syntax
+        run: zsh -n shell/functions/recprompt.sh
 
   bats-tests:
     name: Bats Tests
