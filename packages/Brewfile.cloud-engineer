@@ -70,6 +70,7 @@ brew "sshuttle"
 brew "yamllint"
 brew "thefuck"
 brew "yt-dlp"
+brew "ffmpeg"
 
 # Languages
 brew "go"

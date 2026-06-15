@@ -74,6 +74,7 @@ brew "yamllint"
 brew "qemu"
 brew "thefuck"
 brew "yt-dlp"
+brew "ffmpeg"
 
 # Languages
 brew "go"
