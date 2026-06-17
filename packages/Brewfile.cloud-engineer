@@ -3,6 +3,7 @@
 
 # Taps
 tap "hashicorp/tap"
+tap "homebrew-ffmpeg/ffmpeg"
 
 # Include everything from developer
 brew "bash"
@@ -70,7 +71,10 @@ brew "sshuttle"
 brew "yamllint"
 brew "thefuck"
 brew "yt-dlp"
-brew "ffmpeg"
+# Richer ffmpeg: libass, drawtext (libfreetype), many extra filters — bottled.
+# fdk-aac omitted on purpose: it needs args: ["with-fdk-aac"], a from-source build that
+# recompiles on every ffmpeg update. Re-add that arg if you need the FDK AAC encoder.
+brew "homebrew-ffmpeg/ffmpeg/ffmpeg"
 
 # Languages
 brew "go"
