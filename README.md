@@ -193,6 +193,39 @@ sudo scutil --set LocalHostName "$YOUR_HOSTNAME"
 - **Enable FileVault:** `sudo fdesetup enable`
 - **Disable Homebrew Analytics:** `brew analytics off`
 
+### Remote Desktop (Ubuntu, optional)
+
+Not part of the default bootstrap. `install/ubuntu/install-remote-desktop.sh`
+sets up an `xrdp` server, then restricts port 3389 to your local subnet via
+`ufw` (allowing SSH first so it can't lock you out):
+
+```bash
+bash install/ubuntu/install-remote-desktop.sh          # interactive (XFCE)
+bash install/ubuntu/install-remote-desktop.sh --yes    # no prompt
+DESKTOP=gnome bash install/ubuntu/install-remote-desktop.sh      # opt into GNOME
+SUBNET=10.0.0.0/24 bash install/ubuntu/install-remote-desktop.sh  # override subnet
+```
+
+- **Desktop:** defaults to lightweight **XFCE** (most reliable over RDP). GNOME
+  is opt-in via `DESKTOP=gnome`.
+- **GPU acceleration:** the script disables xorgxrdp glamor (forces software
+  rendering) so the X backend works on any GPU. GNOME Shell crashes on software
+  GL, so `DESKTOP=gnome` only works on hosts with functioning GPU acceleration;
+  everywhere else stick with the XFCE default.
+- **Session fallback:** in the XFCE path the script pins the system default
+  session manager to XFCE. If `~/.xsession` ever goes missing, xrdp would
+  otherwise fall back to GNOME and black-screen/crash on a GPU-less host; pinning
+  prevents that silent fallback.
+- **Subnet:** auto-detected; override with `SUBNET=<cidr>` for multi-NIC hosts.
+- **Polkit:** the script installs an override that silences the Ubuntu 24.04
+  "authentication required to create a color profile" popups over RDP.
+- **One session per user:** do not stay logged into the physical console as the
+  same user you RDP in as. GNOME/XFCE refuse two simultaneous sessions and you
+  get a black screen or crash (`loginctl list-sessions` to check).
+- **Untrusted network:** prefer an SSH tunnel over the LAN rule:
+  `ssh -L 3389:localhost:3389 user@host`, then point your RDP client at
+  `localhost:3389`.
+
 ## Platform Compatibility
 
 | Platform | Architecture | Status |
