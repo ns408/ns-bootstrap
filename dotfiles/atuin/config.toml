@@ -1,8 +1,9 @@
 # Atuin configuration
 # https://docs.atuin.sh/configuration/config/
 
-# ─── Sync (disabled — local-only mode) ───────────────────────
-sync_address = ""
+# ─── Sync (disabled: local-only mode) ────────────────────────
+# Do not set sync_address. Atuin parses it as an absolute URL, so an
+# empty string fails settings deserialization and breaks `atuin init`.
 auto_sync = false
 
 # ─── Search ──────────────────────────────────────────────────

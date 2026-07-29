@@ -39,7 +39,7 @@ SQLite-backed shell history with cross-machine sync (optional):
 
 ```toml
 # ~/.config/atuin/config.toml
-sync_frequency = "0"     # Disable sync (local only)
+auto_sync = false        # Disable sync (local only)
 update_check = false
 style = "compact"
 ```
