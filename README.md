@@ -197,7 +197,8 @@ sudo scutil --set LocalHostName "$YOUR_HOSTNAME"
 
 Not part of the default bootstrap. `install/ubuntu/install-remote-desktop.sh`
 sets up an `xrdp` server, then restricts port 3389 to your local subnet via
-`ufw` (allowing SSH first so it can't lock you out):
+`ufw`. If it has to enable `ufw`, it allows SSH first so it can't lock you out;
+an already-active `ufw` keeps its existing SSH rules:
 
 ```bash
 bash install/ubuntu/install-remote-desktop.sh          # interactive (XFCE)
@@ -217,6 +218,8 @@ SUBNET=10.0.0.0/24 bash install/ubuntu/install-remote-desktop.sh  # override sub
   otherwise fall back to GNOME and black-screen/crash on a GPU-less host; pinning
   prevents that silent fallback.
 - **Subnet:** auto-detected; override with `SUBNET=<cidr>` for multi-NIC hosts.
+  The script refuses an auto-detected subnet that isn't a private range
+  (RFC1918 or CGNAT), so a public IP on the NIC can't expose RDP by accident.
 - **Polkit:** the script installs an override that silences the Ubuntu 24.04
   "authentication required to create a color profile" popups over RDP.
 - **One session per user:** do not stay logged into the physical console as the

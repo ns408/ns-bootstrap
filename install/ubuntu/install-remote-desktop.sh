@@ -43,7 +43,22 @@ if [[ -z "$TARGET_HOME" ]]; then
 fi
 
 # --- Detect LAN subnet (override with SUBNET=...) ---
-if [[ -z "${SUBNET:-}" ]]; then
+# True for private IPv4 ranges: RFC1918 (10/8, 172.16/12, 192.168/16) and CGNAT
+# (100.64/10, e.g. Tailscale).
+is_private_ipv4_cidr() {
+    local a b
+    IFS=. read -r a b _ <<< "${1%%/*}"
+    [[ "$a" =~ ^[0-9]+$ && "$b" =~ ^[0-9]+$ ]] || return 1
+    (( a == 10 )) && return 0
+    (( a == 172 && b >= 16 && b <= 31 )) && return 0
+    (( a == 192 && b == 168 )) && return 0
+    (( a == 100 && b >= 64 && b <= 127 )) && return 0
+    return 1
+}
+
+SUBNET_FROM_ENV=false
+[[ -n "${SUBNET:-}" ]] && SUBNET_FROM_ENV=true
+if [[ "$SUBNET_FROM_ENV" != true ]]; then
     IFACE=$(ip route show default 2>/dev/null | awk '/default/ {print $5; exit}')
     if [[ -n "$IFACE" ]]; then
         SUBNET=$(ip route show dev "$IFACE" 2>/dev/null | awk '/proto kernel/ {print $1; exit}')
@@ -52,6 +67,17 @@ fi
 if [[ -z "${SUBNET:-}" ]]; then
     log_err "Could not auto-detect the LAN subnet. Re-run with SUBNET=<cidr>, e.g. SUBNET=192.168.1.0/24"
     exit 1
+fi
+# A public IP on the default interface (e.g. some VPS hosts) would otherwise turn the
+# "LAN" rule into RDP open to the provider's public block.
+if ! is_private_ipv4_cidr "$SUBNET"; then
+    if [[ "$SUBNET_FROM_ENV" == true ]]; then
+        log_warn "SUBNET=${SUBNET} is not a private range; RDP will be reachable from it."
+    else
+        log_err "Auto-detected subnet ${SUBNET} is not a private (RFC1918/CGNAT) range."
+        log_err "Refusing to open RDP to it. If intended, re-run with SUBNET=${SUBNET} explicitly."
+        exit 1
+    fi
 fi
 
 # --- Choose desktop (DESKTOP=xfce|gnome|auto) ---
@@ -217,8 +243,14 @@ if ! command -v ufw &>/dev/null; then
     log_info "Installing ufw..."
     sudo apt-get install -y ufw
 fi
-# Allow SSH first so enabling ufw can never strand a remote session.
-sudo ufw allow 22/tcp comment 'SSH' > /dev/null
+UFW_WAS_ACTIVE=false
+sudo ufw status | grep -q '^Status: active' && UFW_WAS_ACTIVE=true
+if [[ "$UFW_WAS_ACTIVE" != true ]]; then
+    # About to enable ufw: allow SSH first so it can never strand a remote session.
+    # Before enabling, SSH was reachable from anywhere, so this does not widen exposure.
+    # An already-active ufw keeps its own SSH rules (never broaden a hardened host).
+    sudo ufw allow 22/tcp comment 'SSH' > /dev/null
+fi
 # Restrict RDP to the LAN subnet.
 if sudo ufw status | grep -q "3389/tcp.*ALLOW.*${SUBNET}"; then
     log_info "ufw rule for 3389 from ${SUBNET} already present."
@@ -226,8 +258,8 @@ else
     sudo ufw allow from "${SUBNET}" to any port 3389 proto tcp comment 'xrdp LAN' > /dev/null
     log_info "Allowed 3389/tcp from ${SUBNET}."
 fi
-if sudo ufw status | grep -q '^Status: active'; then
-    log_info "ufw already active."
+if [[ "$UFW_WAS_ACTIVE" == true ]]; then
+    log_info "ufw already active; existing SSH rules left unchanged."
 else
     sudo ufw --force enable
     log_info "ufw enabled."
