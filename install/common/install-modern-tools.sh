@@ -87,7 +87,8 @@ else
         bat \
         httpie \
         direnv \
-        jq
+        jq \
+        gnupg
 
     # Create symlinks for fd and bat (Ubuntu uses different names)
     if ! command -v fd &> /dev/null && command -v fdfind &> /dev/null; then
@@ -111,17 +112,48 @@ else
     log_info "Ensuring C build toolchain is present..."
     sudo apt install -y gcc libc6-dev
 
-    # Tools that need cargo
+    # eza (better ls) — from the maintainer's signed apt repo, not cargo. eza pins
+    # palette at =0.7.5, which no longer compiles on current stable rustc, and the
+    # source build cost ~10 minutes. apt verifies the package signature, which is
+    # stronger than the unsigned release tarballs (eza publishes no checksums).
+    # The repo is pinned to the eza package alone, so trusting its key cannot
+    # shadow anything else in apt.
+    if ! command -v eza &> /dev/null; then
+        log_info "Installing eza from the official apt repository..."
+        sudo mkdir -p -m 755 /etc/apt/keyrings
+        curl --proto '=https' --tlsv1.2 -fsSL \
+            https://raw.githubusercontent.com/eza-community/eza/main/deb.asc \
+            | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
+        echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" \
+            | sudo tee /etc/apt/sources.list.d/gierens.list > /dev/null
+        sudo tee /etc/apt/preferences.d/gierens > /dev/null << 'PIN'
+Package: *
+Pin: origin deb.gierens.de
+Pin-Priority: 1
+
+Package: eza
+Pin: origin deb.gierens.de
+Pin-Priority: 500
+PIN
+        sudo chmod 644 /etc/apt/keyrings/gierens.gpg \
+            /etc/apt/sources.list.d/gierens.list /etc/apt/preferences.d/gierens
+        sudo apt update
+        sudo apt install -y eza
+    fi
+
+    # Tools that need cargo, one at a time: these are conveniences, and a single
+    # crate that stops building upstream must not abort the whole bootstrap.
     log_info "Installing cargo packages (this may take a while)..."
-    cargo install \
-        zoxide \
-        eza \
-        git-delta \
-        bottom \
-        du-dust \
-        procs \
-        hyperfine \
-        bandwhich
+    cargo_failed=()
+    for crate in zoxide git-delta bottom du-dust procs hyperfine bandwhich; do
+        if ! cargo install "$crate"; then
+            log_warn "cargo install ${crate} failed — continuing"
+            cargo_failed+=("$crate")
+        fi
+    done
+    if [[ ${#cargo_failed[@]} -gt 0 ]]; then
+        log_warn "Cargo packages that failed to build: ${cargo_failed[*]}"
+    fi
 
     # duf (better df) — available via apt on Ubuntu 22.04+
     if ! command -v duf &> /dev/null; then
