@@ -10,6 +10,9 @@ NC='\033[0m'
 log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KEYS_DIR="${SCRIPT_DIR}/../keys"
+
 # --- AWS CLI v2 (official installer, not apt) ---
 log_info "Checking AWS CLI v2..."
 if ! command -v aws &>/dev/null || [[ "$(aws --version 2>&1)" != *"aws-cli/2"* ]]; then
@@ -21,10 +24,40 @@ if ! command -v aws &>/dev/null || [[ "$(aws --version 2>&1)" != *"aws-cli/2"* ]
         AWS_URL="https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
     fi
     curl -fsSL "$AWS_URL" -o /tmp/awscliv2.zip
+    curl -fsSL "${AWS_URL}.sig" -o /tmp/awscliv2.zip.sig
+
+    # AWS signs the installer. Its public key is vendored at
+    # install/keys/aws-cli.asc rather than fetched at install time: AWS
+    # publishes it only inside a documentation page, so there is no stable URL
+    # worth pinning. The fingerprint is checked anyway, so an edited key file
+    # cannot slip through unnoticed.
+    AWS_KEY_FINGERPRINT="FB5DB77FD5C118B80511ADA8A6310ACC4672475C"
+    command -v gpg &>/dev/null || sudo apt install -y gnupg
+    AWS_KEY_FPR=$(gpg --show-keys --with-colons "${KEYS_DIR}/aws-cli.asc" | awk -F: '/^fpr:/ {print $10; exit}')
+    if [[ "$AWS_KEY_FPR" != "$AWS_KEY_FINGERPRINT" ]]; then
+        log_warn "Vendored AWS key is ${AWS_KEY_FPR}, expected ${AWS_KEY_FINGERPRINT} — refusing to install"
+        exit 1
+    fi
+
+    # Check the status output, not the exit code: gpg exits 0 for a good
+    # signature made by an expired key, reporting EXPKEYSIG in place of
+    # GOODSIG. Requiring GOODSIG rejects expired and revoked keys alike.
+    AWS_GNUPGHOME=$(mktemp -d)
+    GNUPGHOME="$AWS_GNUPGHOME" gpg --quiet --import "${KEYS_DIR}/aws-cli.asc"
+    AWS_SIG_STATUS=$(GNUPGHOME="$AWS_GNUPGHOME" gpg --status-fd 1 \
+        --verify /tmp/awscliv2.zip.sig /tmp/awscliv2.zip 2>/dev/null || true)
+    rm -rf "$AWS_GNUPGHOME"
+    if ! grep -q '^\[GNUPG:\] GOODSIG' <<< "$AWS_SIG_STATUS"; then
+        rm -f /tmp/awscliv2.zip /tmp/awscliv2.zip.sig
+        log_warn "AWS CLI signature did not verify — refusing to install"
+        log_warn "If the key has expired, refresh install/keys/aws-cli.asc from the AWS CLI install guide"
+        exit 1
+    fi
+
     unzip -qo /tmp/awscliv2.zip -d /tmp/
     sudo /tmp/aws/install --update
-    rm -rf /tmp/aws /tmp/awscliv2.zip
-    log_info "AWS CLI v2 installed: $(aws --version)"
+    rm -rf /tmp/aws /tmp/awscliv2.zip /tmp/awscliv2.zip.sig
+    log_info "AWS CLI v2 installed (signature verified): $(aws --version)"
 else
     log_info "AWS CLI v2 already installed: $(aws --version)"
 fi
