@@ -73,7 +73,7 @@ if [[ "$OS" == "macos" ]]; then
     log_info "macOS modern tools installed successfully!"
 
 else
-    log_info "Installing via apt and cargo..."
+    log_info "Installing via apt and prebuilt binaries..."
 
     # Update package list
     sudo apt update
@@ -101,16 +101,41 @@ else
         sudo ln -sf "$(which batcat)" /usr/local/bin/bat
     fi
 
-    # Install cargo if not present
-    if ! command -v cargo &> /dev/null; then
-        log_info "Installing Rust toolchain..."
-        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-        source "$HOME/.cargo/env"
+    # cargo-binstall fetches each tool's prebuilt release binary instead of
+    # compiling it. Building them from source cost about eight minutes, pulled
+    # in a whole Rust toolchain to install seven small utilities, and left the
+    # bootstrap hostage to any crate that stops compiling on current rustc —
+    # which is exactly how this path broke.
+    #
+    # binstall itself is pinned by version and checksum, so an upgrade is a
+    # deliberate commit rather than whatever "latest" resolves to on the day.
+    # (cargo-bins does publish sigstore attestations, but verifying those needs
+    # the gh CLI, which Ubuntu installs later than this script runs.)
+    BINSTALL_VERSION="1.23.0"
+    ARCH=$(dpkg --print-architecture)
+    if [[ "$ARCH" == "arm64" ]]; then
+        BINSTALL_TARGET="aarch64-unknown-linux-musl"
+        BINSTALL_SHA256="ba9b7bf426c7b7375825cd3fa367c3f8a632ca7c6c546fdcb738114b167f4103"
+    else
+        BINSTALL_TARGET="x86_64-unknown-linux-musl"
+        BINSTALL_SHA256="64bf954c68bb558431deeabecaec7687edd5541c2189ee263bb8bc18bc4fdf55"
     fi
 
-    # Ensure C toolchain is present — cargo needs cc/ld and libc6-dev (Scrt1.o, crti.o)
-    log_info "Ensuring C build toolchain is present..."
-    sudo apt install -y gcc libc6-dev
+    if ! command -v cargo-binstall &> /dev/null; then
+        log_info "Installing cargo-binstall ${BINSTALL_VERSION}..."
+        BINSTALL_TGZ="/tmp/cargo-binstall-${BINSTALL_TARGET}.tgz"
+        curl --proto '=https' --tlsv1.2 -fsSL \
+            "https://github.com/cargo-bins/cargo-binstall/releases/download/v${BINSTALL_VERSION}/cargo-binstall-${BINSTALL_TARGET}.tgz" \
+            -o "$BINSTALL_TGZ"
+        if ! echo "${BINSTALL_SHA256}  ${BINSTALL_TGZ}" | sha256sum -c -; then
+            rm -f "$BINSTALL_TGZ"
+            log_error "cargo-binstall checksum verification failed — refusing to install"
+            exit 1
+        fi
+        tar -xzf "$BINSTALL_TGZ" -C /tmp/ cargo-binstall
+        sudo install -m 755 /tmp/cargo-binstall /usr/local/bin/cargo-binstall
+        rm -f "$BINSTALL_TGZ" /tmp/cargo-binstall
+    fi
 
     # eza (better ls) — from the maintainer's signed apt repo, not cargo. eza pins
     # palette at =0.7.5, which no longer compiles on current stable rustc, and the
@@ -141,18 +166,22 @@ PIN
         sudo apt install -y eza
     fi
 
-    # Tools that need cargo, one at a time: these are conveniences, and a single
-    # crate that stops building upstream must not abort the whole bootstrap.
-    log_info "Installing cargo packages (this may take a while)..."
-    cargo_failed=()
+    # Rust CLI tools, one at a time: these are conveniences, and one crate whose
+    # release assets change shape upstream must not abort the whole bootstrap.
+    # --disable-strategies compile refuses the source-build fallback outright,
+    # since that slow path is the thing being replaced here.
+    log_info "Installing Rust CLI tools (prebuilt binaries)..."
+    mkdir -p "${HOME}/.local/bin"
+    tools_failed=()
     for crate in zoxide git-delta bottom du-dust procs hyperfine bandwhich; do
-        if ! cargo install "$crate"; then
-            log_warn "cargo install ${crate} failed — continuing"
-            cargo_failed+=("$crate")
+        if ! cargo-binstall --no-confirm --disable-strategies compile \
+            --install-path "${HOME}/.local/bin" "$crate"; then
+            log_warn "cargo-binstall ${crate} failed — continuing"
+            tools_failed+=("$crate")
         fi
     done
-    if [[ ${#cargo_failed[@]} -gt 0 ]]; then
-        log_warn "Cargo packages that failed to build: ${cargo_failed[*]}"
+    if [[ ${#tools_failed[@]} -gt 0 ]]; then
+        log_warn "Tools that failed to install: ${tools_failed[*]}"
     fi
 
     # duf (better df) — available via apt on Ubuntu 22.04+
