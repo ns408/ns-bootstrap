@@ -23,7 +23,7 @@ Tracking future improvements and automation opportunities.
 ## Security
 
 - [ ] **Supply chain audit for git-cloned plugins** — Verify integrity of OMZ plugins (zsh-autosuggestions, zsh-syntax-highlighting, zsh-completions, fzf-tab) and vim plugins (fzf.vim, vim-ruby) by pinning to specific commit SHAs or tags rather than cloning HEAD
-- [ ] **Binary provenance verification** — Done on Ubuntu for Terraform and the AWS CLI (signatures against pinned keys), gitleaks (published checksums), cargo-binstall (pinned checksum) and eza (signed apt repo, pinned to that one package). atuin and the other Rust tools come as release binaries via cargo-binstall rather than vendor scripts. Remaining: mise still installs through its vendor script with TLS as the only check, and doggo through snap
+- [x] **Binary provenance verification** — On Ubuntu: Terraform, the AWS CLI and mise are checked against signatures from pinned keys; gitleaks against its published checksums; cargo-binstall against a pinned checksum; eza comes from a signed apt repo pinned to that one package; doggo from snap, which checks store signatures itself. atuin and the other Rust tools are release binaries fetched by cargo-binstall, and no vendor install scripts are run any more. macOS installs through Homebrew
 - [ ] **GitHub Actions for dependency scanning** — Automated weekly check of cloned plugin repos for known vulnerabilities, compromised maintainers, or unexpected force-pushes (compare pinned SHAs against upstream)
 - [ ] **Homebrew formula audit** — Verify all Brewfile entries install from official taps (no third-party taps with unreviewed code)
 - [ ] **npm audit integration** — Even with `ignore-scripts=true`, run `npm audit` periodically on any Node projects bootstrapped by mise
