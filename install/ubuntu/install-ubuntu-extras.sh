@@ -110,11 +110,16 @@ if dpkg -l gitleaks 2>/dev/null | grep -q '^ii'; then
 fi
 if [[ ! -x /usr/local/bin/gitleaks ]]; then
     log_info "Installing gitleaks from GitHub releases..."
-    CURL_AUTH=()
-    [[ -n "${GITHUB_TOKEN:-}" ]] && CURL_AUTH=(-H "Authorization: token $GITHUB_TOKEN")
-    GITLEAKS_VERSION=$(curl -fsSL "${CURL_AUTH[@]}" \
-        https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
-        | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+    # Resolve the tag from the release redirect, not the API: api.github.com
+    # rate-limits unauthenticated callers by IP and answers 403, which is what a
+    # shared CI runner or a NATed office network looks like. GITHUB_TOKEN could
+    # not help here either — `su - user` strips it from the environment.
+    GITLEAKS_VERSION=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
+        https://github.com/gitleaks/gitleaks/releases/latest | sed 's#.*/tag/v##')
+    if [[ -z "$GITLEAKS_VERSION" ]]; then
+        log_warn "Could not resolve the latest gitleaks release — refusing to guess"
+        exit 1
+    fi
     ARCH=$(dpkg --print-architecture)
     [[ "$ARCH" == "amd64" ]] && GITLEAKS_ARCH="x64" || GITLEAKS_ARCH="arm64"
     GITLEAKS_RELEASE="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
@@ -152,11 +157,13 @@ fi
 log_info "Checking Terraform..."
 if ! command -v terraform &>/dev/null; then
     log_info "Installing Terraform from GitHub releases..."
-    CURL_AUTH=()
-    [[ -n "${GITHUB_TOKEN:-}" ]] && CURL_AUTH=(-H "Authorization: token $GITHUB_TOKEN")
-    TF_VERSION=$(curl -fsSL "${CURL_AUTH[@]}" \
-        https://api.github.com/repos/hashicorp/terraform/releases/latest \
-        | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+    # Release redirect rather than the rate-limited API, as for gitleaks above.
+    TF_VERSION=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
+        https://github.com/hashicorp/terraform/releases/latest | sed 's#.*/tag/v##')
+    if [[ -z "$TF_VERSION" ]]; then
+        log_warn "Could not resolve the latest Terraform release — refusing to guess"
+        exit 1
+    fi
     ARCH=$(dpkg --print-architecture)
     curl -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_${ARCH}.zip" \
         -o /tmp/terraform.zip
