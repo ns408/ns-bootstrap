@@ -23,6 +23,7 @@ git clone https://github.com/ns408/ns-bootstrap.git ~/ns-bootstrap
 cd ~/ns-bootstrap
 ./install/bootstrap.sh                  # Full install (admin)
 ./install/bootstrap.sh --dotfiles-only  # Dotfiles only (non-admin)
+./install/bootstrap.sh --relink         # Re-point symlinks after moving the repo
 ./install/bootstrap.sh --dry-run        # Preview what would be installed
 ```
 
@@ -131,14 +132,14 @@ This repo is designed for a two-account macOS workflow:
 - **Admin account** — installs Homebrew packages, system updates, and privileged operations
 - **Daily account** — non-admin, used for day-to-day development work
 
-Shared files (repositories, data, configs) reside in `/Users/Shared` so both accounts can access them.
+Shared files (repositories, data, configs) live in one directory both accounts can reach, readable by the `staff` group they both belong to.
 
 **Shared directory permissions** — Run once from the admin account to grant the `staff` group (which both accounts belong to) full read/write access with inheritance:
 
 ```bash
 sudo chmod -R +a \
   "group:staff allow list,add_file,search,add_subdirectory,delete_child,readattr,writeattr,readextattr,writeextattr,readsecurity,file_inherit,directory_inherit" \
-  /Users/Shared/repositories
+  /Users/usr0/repos
 ```
 
 **Bootstrap workflow:**
@@ -149,6 +150,19 @@ sudo chmod -R +a \
 
 # 2. As daily account — dotfiles only (symlinks + oh-my-zsh + secrets)
 ./install/bootstrap.sh --dotfiles-only
+```
+
+**Moving the repo:** every account carries its own symlinks into the repo, so moving the clone orphans each of them. Run the relink **from each account** — an account cannot see, let alone repair, links inside another account's `700` directories (`~/.config/atuin/` is one), and a dangling link makes tools that create their config on first run fail with a confusing `No such file or directory`.
+
+```bash
+# 1. Move the clone, then from the new location, once per account:
+./install/bootstrap.sh --relink   # re-points symlinks + NS_BOOTSTRAP_DIR, no prompts
+
+# 2. If the LaunchDaemon is in use, re-render it with the new path (admin account):
+sudo launchctl bootout system/com.ns-bootstrap.update-daily
+#    re-install from scripts/launchd-daemon/*.daemon.plist.template (see its header)
+
+# 3. Open a new login shell in each account to confirm it starts clean.
 ```
 
 ### Scheduled Updates

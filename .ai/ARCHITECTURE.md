@@ -49,7 +49,9 @@ flowchart TD
     H -->|Yes| I[install-ubuntu-extras.sh\nAWS CLI v2, Docker Engine]
     H -->|No| J
     I --> J[6. Symlink dotfiles\n9 files → ~/.zshrc etc.]
-    J --> L
+    J --> R{--relink?}
+    R -->|Yes| S([Done\npaths re-pointed])
+    R -->|No| L
 
     L[7. oh-my-zsh + plugins\nper user, not shared]
     L --> M[8. Global git hooks\ncopy dotfiles/git/hooks →\n~/.config/git/hooks]
@@ -204,7 +206,7 @@ AI tools stripped: Claude · Copilot · GPT · OpenAI · Anthropic · Gemini
            └──────────┬────────────────────┘
                       │
                       ▼
-          /Users/Shared/repositories/
+          /Users/usr0/repos/
           (ACL: staff group r/w, inherited)
           ├── ns-bootstrap/
           └── ... (all repos)

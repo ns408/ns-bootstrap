@@ -5,6 +5,7 @@
 # Usage:
 #   ./bootstrap.sh                          # Full install (admin): packages + dotfiles + secrets
 #   ./bootstrap.sh --dotfiles-only          # Dotfiles only (non-admin): symlinks + oh-my-zsh + secrets
+#   ./bootstrap.sh --relink                 # Re-point symlinks + machine config (after moving the repo)
 #   ./bootstrap.sh --dry-run                # Preview what would be installed (no changes)
 #   ./bootstrap.sh --profile minimal --yes  # Non-interactive install (for CI)
 set -euo pipefail
@@ -15,6 +16,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Parse flags
 DOTFILES_ONLY=false
+RELINK=false
 DRY_RUN=false
 AUTO_CONFIRM=false
 PROFILE=""
@@ -27,13 +29,18 @@ for arg in "$@"; do
     fi
     case "$arg" in
         --dotfiles-only) DOTFILES_ONLY=true ;;
+        # Relinking is a subset of dotfiles-only: it reuses that flag to skip
+        # package installation, then exits once the symlinks are re-pointed.
+        --relink) RELINK=true; DOTFILES_ONLY=true ;;
         --dry-run) DRY_RUN=true ;;
         --yes|-y) AUTO_CONFIRM=true ;;
         --profile) _next_is_profile=true ;;
         --help|-h)
-            echo "Usage: $0 [--dotfiles-only] [--dry-run] [--profile NAME] [--yes]"
+            echo "Usage: $0 [--dotfiles-only] [--relink] [--dry-run] [--profile NAME] [--yes]"
             echo ""
             echo "  --dotfiles-only   Skip package installation (for non-admin accounts)"
+            echo "  --relink          Re-point dotfile symlinks and machine config, then exit"
+            echo "                    (run from each account after moving the repo)"
             echo "  --dry-run         Preview what would be installed (no changes made)"
             echo "  --profile NAME    Set profile: minimal, developer, cloud-engineer"
             echo "  --yes, -y         Skip confirmation prompts (for CI/automation)"
@@ -277,7 +284,11 @@ else
     PROFILE="dotfiles-only"
     if [[ "$DRY_RUN" == true ]]; then
         echo ""
-        echo -e "${BOLD}=== Dry Run Preview (dotfiles-only) ===${NC}"
+        if [[ "$RELINK" == true ]]; then
+            echo -e "${BOLD}=== Dry Run Preview (relink) ===${NC}"
+        else
+            echo -e "${BOLD}=== Dry Run Preview (dotfiles-only) ===${NC}"
+        fi
         echo ""
         echo "OS: ${OS}"
         echo ""
@@ -287,9 +298,12 @@ else
         done
         echo ""
         echo "Would configure:"
-        echo "  oh-my-zsh + custom plugins"
-        echo "  Secrets system (1Password / pass)"
+        echo "  NS_BOOTSTRAP_DIR=${PROJECT_ROOT} in ~/.config/ns-bootstrap/config"
         echo "  Global git hooks (gitleaks pre-commit + pre-push, AI-trailer stripping)"
+        if [[ "$RELINK" == false ]]; then
+            echo "  oh-my-zsh + custom plugins"
+            echo "  Secrets system (1Password / pass)"
+        fi
         echo ""
         echo -e "${GREEN}No changes were made.${NC}"
         exit 0
@@ -333,7 +347,16 @@ if [[ ! -f "$NS_BOOTSTRAP_CONFIG_FILE" ]]; then
 NS_BOOTSTRAP_DIR="${PROJECT_ROOT}"
 EOF
     log_info "Written: ${NS_BOOTSTRAP_CONFIG_FILE}"
-elif ! grep -q '^NS_BOOTSTRAP_DIR=' "$NS_BOOTSTRAP_CONFIG_FILE"; then
+elif grep -q '^NS_BOOTSTRAP_DIR=' "$NS_BOOTSTRAP_CONFIG_FILE"; then
+    # A stale value here is silent: .zshrc sources the loader behind an [[ -f ]]
+    # guard, so a moved repo just makes every shell function disappear.
+    current_dir="$(sed -n 's/^NS_BOOTSTRAP_DIR="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' "$NS_BOOTSTRAP_CONFIG_FILE")"
+    if [[ "$current_dir" != "$PROJECT_ROOT" ]]; then
+        sed -i.bak "s|^NS_BOOTSTRAP_DIR=.*|NS_BOOTSTRAP_DIR=\"${PROJECT_ROOT}\"|" "$NS_BOOTSTRAP_CONFIG_FILE"
+        rm -f "${NS_BOOTSTRAP_CONFIG_FILE}.bak"
+        log_info "Updated NS_BOOTSTRAP_DIR: ${current_dir} -> ${PROJECT_ROOT}"
+    fi
+else
     sed -i.bak "2a\\
 NS_BOOTSTRAP_DIR=\"${PROJECT_ROOT}\"
 " "$NS_BOOTSTRAP_CONFIG_FILE"
@@ -347,6 +370,7 @@ log_step "Step 6: Symlinking dotfiles..."
 # Backup directory for this run (created on first backup)
 BACKUP_DIR="${HOME}/.dotfiles-backup/$(date +%Y%m%d%H%M%S)"
 BACKUP_CREATED=false
+LINKS_CHANGED=0
 
 symlink_file() {
     local src="$1"
@@ -375,6 +399,7 @@ symlink_file() {
     fi
 
     ln -s "$src" "$dest"
+    LINKS_CHANGED=$((LINKS_CHANGED + 1))
     log_info "Linked: ${dest} -> ${src}"
 }
 
@@ -390,8 +415,11 @@ fi
 # Vim
 if [[ -f "${PROJECT_ROOT}/dotfiles/vim/.vimrc" ]]; then
     symlink_file "${PROJECT_ROOT}/dotfiles/vim/.vimrc" "${HOME}/.vimrc"
+fi
 
-    # Native vim packages (replaces pathogen)
+# Native vim packages (replaces pathogen) — clones from the network, so a
+# relink (which only re-points paths) skips them.
+if [[ -f "${PROJECT_ROOT}/dotfiles/vim/.vimrc" ]] && [[ "$RELINK" == false ]]; then
     VIM_PACK="${HOME}/.vim/pack/plugins/start"
     mkdir -p "$VIM_PACK"
 
@@ -436,6 +464,19 @@ fi
 if [[ -f "${PROJECT_ROOT}/dotfiles/atuin/config.toml" ]]; then
     mkdir -p "${HOME}/.config/atuin"
     symlink_file "${PROJECT_ROOT}/dotfiles/atuin/config.toml" "${HOME}/.config/atuin/config.toml"
+fi
+
+# Relinking stops here: everything above re-derives from PROJECT_ROOT (symlinks,
+# machine config, git hooks, safe.directory), which is all a repo move invalidates.
+if [[ "$RELINK" == true ]]; then
+    echo ""
+    if [[ "$LINKS_CHANGED" -eq 0 ]]; then
+        log_info "Relink complete — all links already pointed at ${PROJECT_ROOT}"
+    else
+        log_info "Relink complete — ${LINKS_CHANGED} link(s) re-pointed at ${PROJECT_ROOT}"
+        log_warn "Open a new login shell for the change to take effect."
+    fi
+    exit 0
 fi
 
 # oh-my-zsh (install if missing — both platforms)

@@ -6,6 +6,7 @@ setup() {
     TEST_DIR=$(mktemp -d)
     BACKUP_DIR="${TEST_DIR}/backups/$(date +%Y%m%d%H%M%S)"
     BACKUP_CREATED=false
+    LINKS_CHANGED=0
 
     # Source logging functions
     source "${BATS_TEST_DIRNAME}/../install/lib/common.sh"
@@ -34,6 +35,7 @@ setup() {
         fi
 
         ln -s "$src" "$dest"
+        LINKS_CHANGED=$((LINKS_CHANGED + 1))
     }
 }
 
@@ -92,6 +94,35 @@ teardown() {
 
     [[ -L "$dest" ]]
     [[ "$(readlink "$dest")" == "$src" ]]
+}
+
+@test "symlink_file repairs a dangling symlink" {
+    # A moved repo leaves links pointing at a path that no longer exists. Tools
+    # that create their config on first run (atuin) then fail with ENOENT,
+    # because the create resolves to the vanished target, not to dest.
+    local src="${TEST_DIR}/source_file"
+    local dest="${TEST_DIR}/dest_link"
+    echo "content" > "$src"
+    ln -s "${TEST_DIR}/gone/source_file" "$dest"
+    [[ ! -e "$dest" ]]
+
+    symlink_file "$src" "$dest"
+
+    [[ -L "$dest" ]]
+    [[ -e "$dest" ]]
+    [[ "$(readlink "$dest")" == "$src" ]]
+    [[ "$LINKS_CHANGED" -eq 1 ]]
+}
+
+@test "symlink_file leaves the change counter alone when already linked" {
+    local src="${TEST_DIR}/source_file"
+    local dest="${TEST_DIR}/dest_link"
+    echo "content" > "$src"
+    ln -s "$src" "$dest"
+
+    symlink_file "$src" "$dest"
+
+    [[ "$LINKS_CHANGED" -eq 0 ]]
 }
 
 @test "symlink_file creates backup directory only when needed" {
