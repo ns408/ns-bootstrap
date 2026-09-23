@@ -117,12 +117,33 @@ if [[ ! -x /usr/local/bin/gitleaks ]]; then
         | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
     ARCH=$(dpkg --print-architecture)
     [[ "$ARCH" == "amd64" ]] && GITLEAKS_ARCH="x64" || GITLEAKS_ARCH="arm64"
-    curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${GITLEAKS_ARCH}.tar.gz" \
-        -o /tmp/gitleaks.tar.gz
-    tar -xzf /tmp/gitleaks.tar.gz -C /tmp/ gitleaks
+    GITLEAKS_RELEASE="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+    GITLEAKS_TARBALL="gitleaks_${GITLEAKS_VERSION}_linux_${GITLEAKS_ARCH}.tar.gz"
+    curl -fsSL "${GITLEAKS_RELEASE}/${GITLEAKS_TARBALL}" -o "/tmp/${GITLEAKS_TARBALL}"
+
+    # Verify against the published checksums before unpacking. This catches a
+    # truncated or tampered download; it cannot detect a compromised release,
+    # since the checksums come from the same origin as the tarball.
+    curl -fsSL "${GITLEAKS_RELEASE}/gitleaks_${GITLEAKS_VERSION}_checksums.txt" \
+        -o /tmp/gitleaks_checksums.txt
+    # Pull the line out first: an absent entry must fail loudly rather than feed
+    # sha256sum an empty stdin and depend on pipefail to notice.
+    GITLEAKS_EXPECTED=$(grep " ${GITLEAKS_TARBALL}\$" /tmp/gitleaks_checksums.txt || true)
+    if [[ -z "$GITLEAKS_EXPECTED" ]]; then
+        rm -f "/tmp/${GITLEAKS_TARBALL}" /tmp/gitleaks_checksums.txt
+        log_warn "No checksum published for ${GITLEAKS_TARBALL} — refusing to install"
+        exit 1
+    fi
+    if ! (cd /tmp && printf '%s\n' "$GITLEAKS_EXPECTED" | sha256sum -c -); then
+        rm -f "/tmp/${GITLEAKS_TARBALL}" /tmp/gitleaks_checksums.txt
+        log_warn "gitleaks checksum verification failed — refusing to install"
+        exit 1
+    fi
+
+    tar -xzf "/tmp/${GITLEAKS_TARBALL}" -C /tmp/ gitleaks
     sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
-    rm /tmp/gitleaks.tar.gz
-    log_info "gitleaks installed: $(gitleaks version)"
+    rm -f "/tmp/${GITLEAKS_TARBALL}" /tmp/gitleaks_checksums.txt
+    log_info "gitleaks installed (checksum verified): $(gitleaks version)"
 else
     log_info "gitleaks already installed: $(gitleaks version)"
 fi
