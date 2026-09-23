@@ -18,6 +18,13 @@ export VISUAL="code --wait"
 export LANG="en_US.UTF-8"
 export LC_ALL="en_US.UTF-8"
 
+# Python: pip refuses any install outside a venv, --user included (override
+# with PIP_REQUIRE_VIRTUALENV=0 for the odd bootstrap case). uv never downloads
+# its own CPython, so projects run on an interpreter already on the machine —
+# it does not force mise; UV_MANAGED_PYTHON is the knob for that.
+export PIP_REQUIRE_VIRTUALENV=1
+export UV_PYTHON_DOWNLOADS=never
+
 # ─── Go ───────────────────────────────────────────────────────
 export PATH="${HOME}/go/bin:${PATH}"
 

@@ -45,3 +45,5 @@ coverage/
 # Misc
 *.log
 .cache/
+
+**/.claude/settings.local.json
