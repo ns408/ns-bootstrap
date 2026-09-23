@@ -177,10 +177,33 @@ PIN
     log_info "Installing kdig (DNS lookup tool)..."
     sudo apt install -y knot-dnsutils
 
+    # Vendor installers: download, then run from a file rather than piping into
+    # sh. A piped installer inherits the pipe as stdin, so anything it reads
+    # swallows the rest of its own script, and a failure reports nothing useful —
+    # atuin's has been exiting 2 with no output since the 2026-08-01 CI run.
+    # Running from a file also allows passing flags such as --non-interactive.
+    run_vendor_installer() {
+        local name="$1" url="$2"
+        shift 2
+        local installer
+        installer=$(mktemp)
+        if ! curl --proto '=https' --tlsv1.2 -LsSf "$url" -o "$installer"; then
+            log_warn "Could not download the ${name} installer from ${url} — skipping"
+            rm -f "$installer"
+            return 1
+        fi
+        if ! sh "$installer" "$@"; then
+            log_warn "${name} installer failed — skipping (bootstrap continues)"
+            rm -f "$installer"
+            return 1
+        fi
+        rm -f "$installer"
+    }
+
     # Atuin (modern shell history)
     log_info "Installing atuin (shell history)..."
     if ! command -v atuin &>/dev/null; then
-        curl --proto '=https' --tlsv1.2 -LsSf https://setup.atuin.sh | sh
+        run_vendor_installer atuin https://setup.atuin.sh --non-interactive || true
     else
         log_info "atuin already installed"
     fi
@@ -188,7 +211,7 @@ PIN
     # mise (version manager)
     log_info "Installing mise (version manager)..."
     if ! command -v mise &>/dev/null; then
-        curl --proto '=https' --tlsv1.2 -LsSf https://mise.run | sh
+        run_vendor_installer mise https://mise.run || true
     else
         log_info "mise already installed"
     fi
