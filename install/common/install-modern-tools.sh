@@ -210,33 +210,68 @@ PIN
     log_info "Installing kdig (DNS lookup tool)..."
     sudo apt install -y knot-dnsutils
 
-    # Vendor installers: download, then run from a file rather than piping into
-    # sh. A piped installer inherits the pipe as stdin, so anything it reads
-    # swallows the rest of its own script, and a failure reports nothing useful
-    # (atuin's did exactly that, before atuin moved to cargo-binstall above).
-    # Running from a file also allows passing flags such as --non-interactive.
-    run_vendor_installer() {
-        local name="$1" url="$2"
-        shift 2
-        local installer
-        installer=$(mktemp)
-        if ! curl --proto '=https' --tlsv1.2 -LsSf "$url" -o "$installer"; then
-            log_warn "Could not download the ${name} installer from ${url} — skipping"
-            rm -f "$installer"
-            return 1
+    # mise (version manager): the release tarball, checked against mise's
+    # GPG-signed checksums, rather than the mise.run script. That script does
+    # verify a checksum, but one embedded in itself, so both come from the same
+    # server. SHASUMS256.asc is clearsigned: the checksums are read from the
+    # text gpg verified, never from the separately published SHASUMS256.txt,
+    # which could be swapped while a valid signature stayed in place.
+    # Installs to ~/.local/bin/mise, where mise.run put it, so `mise
+    # self-update` in update-my-system carries on working unchanged.
+    install_mise_verified() {
+        local key_fpr="24853EC9F655CE80B48E6C3A8B81C9D17413A06D"
+        local version arch asset work fpr status
+        version=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
+            https://github.com/jdx/mise/releases/latest | sed 's#.*/tag/v##')
+        [[ "$(dpkg --print-architecture)" == "arm64" ]] && arch="linux-arm64" || arch="linux-x64"
+        asset="mise-v${version}-${arch}.tar.gz"
+        work=$(mktemp -d)
+
+        if [[ -z "$version" ]] \
+            || ! curl --proto '=https' --tlsv1.2 -fsSL -o "${work}/${asset}" \
+                "https://github.com/jdx/mise/releases/download/v${version}/${asset}" \
+            || ! curl --proto '=https' --tlsv1.2 -fsSL -o "${work}/SHASUMS256.asc" \
+                "https://github.com/jdx/mise/releases/download/v${version}/SHASUMS256.asc" \
+            || ! curl --proto '=https' --tlsv1.2 -fsSL -o "${work}/mise.pub" \
+                https://mise.jdx.dev/gpg-key.pub; then
+            log_warn "Could not download mise ${version:-(unresolved version)} — skipping"
+            rm -rf "$work"
+            return 0
         fi
-        if ! sh "$installer" "$@"; then
-            log_warn "${name} installer failed — skipping (bootstrap continues)"
-            rm -f "$installer"
-            return 1
+
+        # A download failure above is only an outage; from here on a failure
+        # means something does not match, so it stops the bootstrap.
+        fpr=$(gpg --show-keys --with-colons "${work}/mise.pub" | awk -F: '/^fpr:/ {print $10; exit}')
+        if [[ "$fpr" != "$key_fpr" ]]; then
+            rm -rf "$work"
+            log_error "mise signing key is ${fpr}, expected ${key_fpr} — refusing to install"
+            exit 1
         fi
-        rm -f "$installer"
+        mkdir -m 700 "${work}/gnupg"
+        GNUPGHOME="${work}/gnupg" gpg --quiet --import "${work}/mise.pub"
+        # Require GOODSIG in the status output: gpg's exit code alone accepts
+        # a good signature from an expired key.
+        status=$(GNUPGHOME="${work}/gnupg" gpg --status-fd 3 \
+            --output "${work}/verified.txt" --decrypt "${work}/SHASUMS256.asc" \
+            3>&1 1>/dev/null 2>/dev/null || true)
+        if ! grep -q '^\[GNUPG:\] GOODSIG' <<< "$status" \
+            || ! grep -q " ./${asset}\$" "${work}/verified.txt" \
+            || ! (cd "$work" && grep " ./${asset}\$" verified.txt | sha256sum -c -); then
+            rm -rf "$work"
+            log_error "mise ${version} failed signature or checksum verification — refusing to install"
+            exit 1
+        fi
+
+        tar -xzf "${work}/${asset}" -C "$work"
+        mkdir -p "${HOME}/.local/bin"
+        install -m 755 "${work}/mise/bin/mise" "${HOME}/.local/bin/mise"
+        rm -rf "$work"
+        log_info "mise ${version} installed (signature verified)"
     }
 
-    # mise (version manager)
     log_info "Installing mise (version manager)..."
     if ! command -v mise &>/dev/null; then
-        run_vendor_installer mise https://mise.run || true
+        install_mise_verified
     else
         log_info "mise already installed"
     fi
