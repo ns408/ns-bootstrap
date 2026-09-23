@@ -12,7 +12,10 @@ export LANG="en_US.UTF-8"
 export LC_ALL="en_US.UTF-8"
 
 # ─── PATH ─────────────────────────────────────────────────────
-export PATH="${HOME}/go/bin:${HOME}/.cargo/bin:${HOME}/.local/bin:${HOME}/bin:${PATH}"
+# .atuin/bin is where atuin's own installer puts the binary on Linux; without
+# it the `command -v atuin` guard in .zshrc never fires and atuin, though
+# installed, is never activated.
+export PATH="${HOME}/go/bin:${HOME}/.cargo/bin:${HOME}/.local/bin:${HOME}/.atuin/bin:${HOME}/bin:${PATH}"
 
 # ─── PATH (deduplicated) ──────────────────────────────────────
 typeset -U PATH

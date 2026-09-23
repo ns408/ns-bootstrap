@@ -55,6 +55,20 @@ jobs:
         run: |
           su - testuser -c "command -v rg && command -v fd && command -v fzf && command -v bat"
 
+      # These installs warn and continue rather than aborting the bootstrap, so
+      # CI is the only thing standing between an upstream breakage and a machine
+      # that quietly comes up missing tools.
+      - name: Verify non-fatal tool installs
+        run: |
+          su - testuser -c '
+            missing=""
+            for tool in eza zoxide delta btm dust procs hyperfine bandwhich atuin mise; do
+              command -v "$tool" >/dev/null || missing="$missing $tool"
+            done
+            [ -z "$missing" ] || { echo "Missing after bootstrap:$missing"; exit 1; }
+            echo "All non-fatal tool installs present"
+          '
+
       - name: Verify security tools
         run: |
           su - testuser -c "command -v gitleaks && gitleaks version"

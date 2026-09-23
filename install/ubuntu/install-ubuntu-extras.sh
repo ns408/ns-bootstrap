@@ -110,19 +110,45 @@ if dpkg -l gitleaks 2>/dev/null | grep -q '^ii'; then
 fi
 if [[ ! -x /usr/local/bin/gitleaks ]]; then
     log_info "Installing gitleaks from GitHub releases..."
-    CURL_AUTH=()
-    [[ -n "${GITHUB_TOKEN:-}" ]] && CURL_AUTH=(-H "Authorization: token $GITHUB_TOKEN")
-    GITLEAKS_VERSION=$(curl -fsSL "${CURL_AUTH[@]}" \
-        https://api.github.com/repos/gitleaks/gitleaks/releases/latest \
-        | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+    # Resolve the tag from the release redirect, not the API: api.github.com
+    # rate-limits unauthenticated callers by IP and answers 403, which is what a
+    # shared CI runner or a NATed office network looks like. GITHUB_TOKEN could
+    # not help here either — `su - user` strips it from the environment.
+    GITLEAKS_VERSION=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
+        https://github.com/gitleaks/gitleaks/releases/latest | sed 's#.*/tag/v##')
+    if [[ -z "$GITLEAKS_VERSION" ]]; then
+        log_warn "Could not resolve the latest gitleaks release — refusing to guess"
+        exit 1
+    fi
     ARCH=$(dpkg --print-architecture)
     [[ "$ARCH" == "amd64" ]] && GITLEAKS_ARCH="x64" || GITLEAKS_ARCH="arm64"
-    curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${GITLEAKS_ARCH}.tar.gz" \
-        -o /tmp/gitleaks.tar.gz
-    tar -xzf /tmp/gitleaks.tar.gz -C /tmp/ gitleaks
+    GITLEAKS_RELEASE="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+    GITLEAKS_TARBALL="gitleaks_${GITLEAKS_VERSION}_linux_${GITLEAKS_ARCH}.tar.gz"
+    curl -fsSL "${GITLEAKS_RELEASE}/${GITLEAKS_TARBALL}" -o "/tmp/${GITLEAKS_TARBALL}"
+
+    # Verify against the published checksums before unpacking. This catches a
+    # truncated or tampered download; it cannot detect a compromised release,
+    # since the checksums come from the same origin as the tarball.
+    curl -fsSL "${GITLEAKS_RELEASE}/gitleaks_${GITLEAKS_VERSION}_checksums.txt" \
+        -o /tmp/gitleaks_checksums.txt
+    # Pull the line out first: an absent entry must fail loudly rather than feed
+    # sha256sum an empty stdin and depend on pipefail to notice.
+    GITLEAKS_EXPECTED=$(grep " ${GITLEAKS_TARBALL}\$" /tmp/gitleaks_checksums.txt || true)
+    if [[ -z "$GITLEAKS_EXPECTED" ]]; then
+        rm -f "/tmp/${GITLEAKS_TARBALL}" /tmp/gitleaks_checksums.txt
+        log_warn "No checksum published for ${GITLEAKS_TARBALL} — refusing to install"
+        exit 1
+    fi
+    if ! (cd /tmp && printf '%s\n' "$GITLEAKS_EXPECTED" | sha256sum -c -); then
+        rm -f "/tmp/${GITLEAKS_TARBALL}" /tmp/gitleaks_checksums.txt
+        log_warn "gitleaks checksum verification failed — refusing to install"
+        exit 1
+    fi
+
+    tar -xzf "/tmp/${GITLEAKS_TARBALL}" -C /tmp/ gitleaks
     sudo mv /tmp/gitleaks /usr/local/bin/gitleaks
-    rm /tmp/gitleaks.tar.gz
-    log_info "gitleaks installed: $(gitleaks version)"
+    rm -f "/tmp/${GITLEAKS_TARBALL}" /tmp/gitleaks_checksums.txt
+    log_info "gitleaks installed (checksum verified): $(gitleaks version)"
 else
     log_info "gitleaks already installed: $(gitleaks version)"
 fi
@@ -131,18 +157,53 @@ fi
 log_info "Checking Terraform..."
 if ! command -v terraform &>/dev/null; then
     log_info "Installing Terraform from GitHub releases..."
-    CURL_AUTH=()
-    [[ -n "${GITHUB_TOKEN:-}" ]] && CURL_AUTH=(-H "Authorization: token $GITHUB_TOKEN")
-    TF_VERSION=$(curl -fsSL "${CURL_AUTH[@]}" \
-        https://api.github.com/repos/hashicorp/terraform/releases/latest \
-        | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+    # Release redirect rather than the rate-limited API, as for gitleaks above.
+    TF_VERSION=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
+        https://github.com/hashicorp/terraform/releases/latest | sed 's#.*/tag/v##')
+    if [[ -z "$TF_VERSION" ]]; then
+        log_warn "Could not resolve the latest Terraform release — refusing to guess"
+        exit 1
+    fi
     ARCH=$(dpkg --print-architecture)
-    curl -fsSL "https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_${ARCH}.zip" \
-        -o /tmp/terraform.zip
-    unzip -qo /tmp/terraform.zip -d /tmp/ terraform
+    TF_BASE="https://releases.hashicorp.com/terraform/${TF_VERSION}"
+    TF_ZIP="terraform_${TF_VERSION}_linux_${ARCH}.zip"
+    curl -fsSL "${TF_BASE}/${TF_ZIP}" -o "/tmp/${TF_ZIP}"
+    curl -fsSL "${TF_BASE}/terraform_${TF_VERSION}_SHA256SUMS" -o /tmp/terraform_SHA256SUMS
+    curl -fsSL "${TF_BASE}/terraform_${TF_VERSION}_SHA256SUMS.sig" -o /tmp/terraform_SHA256SUMS.sig
+    curl -fsSL https://www.hashicorp.com/.well-known/pgp-key.txt -o /tmp/hashicorp.asc
+
+    # HashiCorp signs the checksum file, so unlike the gitleaks check this is
+    # real provenance rather than same-origin: the signing key is pinned by
+    # fingerprint here, and imported into a throwaway keyring so verification
+    # cannot be satisfied by anything already trusted on the machine.
+    TF_GPG_FINGERPRINT="C874011F0AB405110D02105534365D9472D7468F"
+    command -v gpg &>/dev/null || sudo apt install -y gnupg
+    TF_KEY_FPR=$(gpg --show-keys --with-colons /tmp/hashicorp.asc | awk -F: '/^fpr:/ {print $10; exit}')
+    if [[ "$TF_KEY_FPR" != "$TF_GPG_FINGERPRINT" ]]; then
+        log_warn "HashiCorp key fingerprint is ${TF_KEY_FPR}, expected ${TF_GPG_FINGERPRINT} — refusing to install"
+        exit 1
+    fi
+
+    TF_GNUPGHOME=$(mktemp -d)
+    if ! GNUPGHOME="$TF_GNUPGHOME" gpg --quiet --import /tmp/hashicorp.asc \
+        || ! GNUPGHOME="$TF_GNUPGHOME" gpg --verify \
+            /tmp/terraform_SHA256SUMS.sig /tmp/terraform_SHA256SUMS; then
+        rm -rf "$TF_GNUPGHOME"
+        log_warn "Terraform checksum signature did not verify — refusing to install"
+        exit 1
+    fi
+    rm -rf "$TF_GNUPGHOME"
+
+    TF_EXPECTED=$(grep " ${TF_ZIP}\$" /tmp/terraform_SHA256SUMS || true)
+    if [[ -z "$TF_EXPECTED" ]] || ! (cd /tmp && printf '%s\n' "$TF_EXPECTED" | sha256sum -c -); then
+        log_warn "Terraform checksum verification failed — refusing to install"
+        exit 1
+    fi
+
+    unzip -qo "/tmp/${TF_ZIP}" -d /tmp/ terraform
     sudo mv /tmp/terraform /usr/local/bin/terraform
-    rm /tmp/terraform.zip
-    log_info "Terraform installed: $(terraform --version | head -1)"
+    rm -f "/tmp/${TF_ZIP}" /tmp/terraform_SHA256SUMS /tmp/terraform_SHA256SUMS.sig /tmp/hashicorp.asc
+    log_info "Terraform installed (signature verified): $(terraform --version | head -1)"
 else
     log_info "Terraform already installed: $(terraform --version | head -1)"
 fi
