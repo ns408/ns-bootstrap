@@ -166,20 +166,24 @@ PIN
         sudo apt install -y eza
     fi
 
-    # Rust CLI tools, one at a time: these are conveniences, and one crate whose
-    # release assets change shape upstream must not abort the whole bootstrap.
-    # --disable-strategies compile refuses the source-build fallback outright,
-    # since that slow path is the thing being replaced here.
+    # Rust CLI tools (atuin included), one at a time: these are conveniences, and
+    # one crate whose release assets change shape upstream must not abort the
+    # whole bootstrap. The list lives in packages/ so update-my-system upgrades
+    # exactly what was installed. --disable-strategies compile refuses the
+    # source-build fallback outright, since that slow path is what this replaces.
+    # --root rather than --install-path: it records what was installed, so a
+    # re-run skips tools that are already current instead of downloading them.
     log_info "Installing Rust CLI tools (prebuilt binaries)..."
     mkdir -p "${HOME}/.local/bin"
     tools_failed=()
-    for crate in zoxide git-delta bottom du-dust procs hyperfine bandwhich; do
+    while IFS= read -r crate; do
+        [[ -z "$crate" || "$crate" == \#* ]] && continue
         if ! cargo-binstall --no-confirm --disable-strategies compile \
-            --install-path "${HOME}/.local/bin" "$crate"; then
+            --root "${HOME}/.local" "$crate"; then
             log_warn "cargo-binstall ${crate} failed — continuing"
             tools_failed+=("$crate")
         fi
-    done
+    done < "${SCRIPT_DIR}/../../packages/binstall-tools.ubuntu"
     if [[ ${#tools_failed[@]} -gt 0 ]]; then
         log_warn "Tools that failed to install: ${tools_failed[*]}"
     fi
@@ -208,8 +212,8 @@ PIN
 
     # Vendor installers: download, then run from a file rather than piping into
     # sh. A piped installer inherits the pipe as stdin, so anything it reads
-    # swallows the rest of its own script, and a failure reports nothing useful —
-    # atuin's has been exiting 2 with no output since the 2026-08-01 CI run.
+    # swallows the rest of its own script, and a failure reports nothing useful
+    # (atuin's did exactly that, before atuin moved to cargo-binstall above).
     # Running from a file also allows passing flags such as --non-interactive.
     run_vendor_installer() {
         local name="$1" url="$2"
@@ -228,14 +232,6 @@ PIN
         fi
         rm -f "$installer"
     }
-
-    # Atuin (modern shell history)
-    log_info "Installing atuin (shell history)..."
-    if ! command -v atuin &>/dev/null; then
-        run_vendor_installer atuin https://setup.atuin.sh --non-interactive || true
-    else
-        log_info "atuin already installed"
-    fi
 
     # mise (version manager)
     log_info "Installing mise (version manager)..."

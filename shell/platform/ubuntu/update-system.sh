@@ -3,7 +3,7 @@
 #
 # Two tiers:
 #   update-apt-daily    — apt packages only, background-safe
-#   update-my-system    — Full update (snap, flatpak, mise, omz), may need sudo
+#   update-my-system    — Full update (snap, flatpak, mise, Rust CLI tools, omz), may need sudo
 #
 # Scheduled via systemd user timers (see scripts/scheduled-update-*.sh)
 
@@ -29,7 +29,8 @@ update-apt-daily() {
 
 # --- Tier 2: Interactive daily (full system) ---
 update-my-system() {
-  local log
+  local log crate
+  local binstall_list="${NS_BOOTSTRAP_DIR:-${HOME}/ns-bootstrap}/packages/binstall-tools.ubuntu"
   log="${_update_log_dir}/update-system-$(date +%Y%m%d).log"
   mkdir -p "$_update_log_dir"
 
@@ -53,6 +54,19 @@ update-my-system() {
       echo -e "\n--- mise ---"
       mise self-update 2>/dev/null || true
       mise upgrade
+    fi
+
+    # Rust CLI tools, including atuin: the same list bootstrap installed, so
+    # nothing stays at its bootstrap-day version. binstall skips any tool that
+    # is already current. binstall itself is not upgraded here, since its
+    # version is pinned in install-modern-tools.sh and watched by pin-check.yml.
+    if command -v cargo-binstall &>/dev/null && [[ -f "$binstall_list" ]]; then
+      echo -e "\n--- Rust CLI tools (cargo-binstall) ---"
+      while IFS= read -r crate; do
+        [[ -z "$crate" || "$crate" == \#* ]] && continue
+        cargo-binstall --no-confirm --disable-strategies compile \
+          --root "${HOME}/.local" "$crate" || echo "cargo-binstall ${crate} failed; continuing"
+      done < "$binstall_list"
     fi
 
     # oh-my-zsh

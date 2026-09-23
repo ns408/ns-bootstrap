@@ -69,6 +69,32 @@ jobs:
             echo "All non-fatal tool installs present"
           '
 
+      # update-my-system is otherwise never exercised on Ubuntu. Run straight
+      # after bootstrap, it also proves install and update share one tool list:
+      # every Rust tool should report as already current, none reinstalled.
+      - name: Run update-my-system
+        shell: bash
+        run: |
+          cat > /tmp/run-update.sh <<EOF
+          export NS_BOOTSTRAP_DIR="$GITHUB_WORKSPACE"
+          source "\$NS_BOOTSTRAP_DIR/shell/platform/ubuntu/update-system.sh"
+          update-my-system
+          EOF
+          chmod 755 /tmp/run-update.sh
+          su - testuser -c "bash /tmp/run-update.sh" > /tmp/update.log 2>&1 || true
+          cat /tmp/update.log
+
+          expected=$(grep -cvE '^(#|$)' packages/binstall-tools.ubuntu)
+          current=$(grep -c "is already installed" /tmp/update.log || true)
+          grep -q -- "--- Rust CLI tools (cargo-binstall) ---" /tmp/update.log \
+            || { echo "update-my-system never reached the Rust tools section"; exit 1; }
+          if grep -q "Installing binaries" /tmp/update.log; then
+            echo "update-my-system reinstalled tools that bootstrap had just installed"; exit 1
+          fi
+          [ "$current" -eq "$expected" ] \
+            || { echo "Expected ${expected} tools already current, found ${current}"; exit 1; }
+          echo "All ${expected} Rust tools already current; nothing reinstalled"
+
       - name: Verify security tools
         run: |
           su - testuser -c "command -v gitleaks && gitleaks version"

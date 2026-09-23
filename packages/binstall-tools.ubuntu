@@ -1,0 +1,11 @@
+# Rust CLI tools - Ubuntu, all profiles
+# Installed and updated as prebuilt binaries via cargo-binstall, into ~/.local/bin.
+# Read by install/common/install-modern-tools.sh and by update-my-system.
+zoxide
+git-delta
+bottom
+du-dust
+procs
+hyperfine
+bandwhich
+atuin

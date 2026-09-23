@@ -7,7 +7,7 @@ Tracking future improvements and automation opportunities.
 - [ ] **Brewfile staleness checker** — Monthly job to flag deprecated/removed formulae and casks (see `.github/workflows/brew-check.yml` for starting point)
 - [ ] **Oh-My-Zsh plugin version check** — Verify plugins in `.zshrc` still exist in the OMZ repo and check for renamed/deprecated plugins
 - [x] **Pinned version tracker** — Monthly `pin-check.yml` keeps one issue open while cargo-binstall's pin lags upstream (proposing attestation-verified digests) or the vendored AWS CLI key is within 60 days of expiry. Tools installed at latest (atuin, mise, doggo) have no pin to track; see Ubuntu tool drift below
-- [ ] **Ubuntu tool drift** — `update-my-system` upgrades mise on Ubuntu, but nothing updates atuin (`~/.atuin/bin`) or the cargo-binstall tools once installed, so they stay at their bootstrap-day versions
+- [x] **Ubuntu tool drift** — atuin joined the other Rust tools on cargo-binstall, and `update-my-system` upgrades everything in `packages/binstall-tools.ubuntu`, the same list bootstrap installs from. Bootstrap Test runs the updater and checks it reinstalls nothing
 - [ ] **apt package audit** — Validate `apt-packages.*` lists against Ubuntu 24.04 package index, flag removed or renamed packages
 - [ ] **Starship config validator** — Check `starship.toml` modules against the latest Starship schema for deprecated keys
 - [ ] **ShellCheck severity escalation** — Gradually tighten ShellCheck from `warning` to `info` as issues are resolved
@@ -23,7 +23,7 @@ Tracking future improvements and automation opportunities.
 ## Security
 
 - [ ] **Supply chain audit for git-cloned plugins** — Verify integrity of OMZ plugins (zsh-autosuggestions, zsh-syntax-highlighting, zsh-completions, fzf-tab) and vim plugins (fzf.vim, vim-ruby) by pinning to specific commit SHAs or tags rather than cloning HEAD
-- [ ] **Binary provenance verification** — Done on Ubuntu for Terraform and the AWS CLI (signatures against pinned keys), gitleaks (published checksums), cargo-binstall (pinned checksum) and eza (signed apt repo, pinned to that one package). Remaining: atuin and mise still install through their vendor scripts with TLS as the only check, and doggo through snap
+- [ ] **Binary provenance verification** — Done on Ubuntu for Terraform and the AWS CLI (signatures against pinned keys), gitleaks (published checksums), cargo-binstall (pinned checksum) and eza (signed apt repo, pinned to that one package). atuin and the other Rust tools come as release binaries via cargo-binstall rather than vendor scripts. Remaining: mise still installs through its vendor script with TLS as the only check, and doggo through snap
 - [ ] **GitHub Actions for dependency scanning** — Automated weekly check of cloned plugin repos for known vulnerabilities, compromised maintainers, or unexpected force-pushes (compare pinned SHAs against upstream)
 - [ ] **Homebrew formula audit** — Verify all Brewfile entries install from official taps (no third-party taps with unreviewed code)
 - [ ] **npm audit integration** — Even with `ignore-scripts=true`, run `npm audit` periodically on any Node projects bootstrapped by mise
