@@ -12,9 +12,10 @@ export LANG="en_US.UTF-8"
 export LC_ALL="en_US.UTF-8"
 
 # ─── PATH ─────────────────────────────────────────────────────
-# .atuin/bin is where atuin's own installer puts the binary on Linux; without
-# it the `command -v atuin` guard in .zshrc never fires and atuin, though
-# installed, is never activated.
+# .atuin/bin holds atuin on machines bootstrapped before it moved to
+# cargo-binstall; without it the `command -v atuin` guard in .zshrc never
+# fired there. New installs land in .local/bin, which comes first, so once
+# update-my-system has run, the newer copy wins and the old one can go.
 export PATH="${HOME}/go/bin:${HOME}/.cargo/bin:${HOME}/.local/bin:${HOME}/.atuin/bin:${HOME}/bin:${PATH}"
 
 # ─── PATH (deduplicated) ──────────────────────────────────────
