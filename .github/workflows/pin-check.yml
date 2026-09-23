@@ -1,0 +1,83 @@
+name: Pin Check
+
+# Things the repo deliberately pins go stale quietly: a pinned release keeps
+# working while it ages, and a vendored signing key works right up to the day
+# it expires. This checks each one and keeps a single issue open while anything
+# needs attention, closing it once everything is current again.
+
+on:
+  schedule:
+    - cron: '0 9 1 * *'  # First of each month at 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  attestations: read
+
+jobs:
+  check:
+    name: Check pinned versions and keys
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE_TITLE: Pinned versions need attention
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check pins
+        run: |
+          findings=()
+
+          # --- cargo-binstall: version and per-arch SHA256 pinned in install-modern-tools.sh
+          script=install/common/install-modern-tools.sh
+          pinned=$(sed -n 's/^ *BINSTALL_VERSION="\(.*\)"/\1/p' "$script")
+          latest=$(gh release view --repo cargo-bins/cargo-binstall --json tagName -q .tagName | sed 's/^v//')
+          if [ -z "$pinned" ] || [ -z "$latest" ]; then
+            findings+=("- Could not read the cargo-binstall pin (pinned: \`${pinned:-?}\`, latest: \`${latest:-?}\`). The check itself may need fixing.")
+          elif [ "$pinned" != "$latest" ]; then
+            # Verify the new release's build attestation before proposing its
+            # digests, so the bump is not trust-on-first-use.
+            digests=""
+            attested=true
+            for target in x86_64-unknown-linux-musl aarch64-unknown-linux-musl; do
+              asset="cargo-binstall-${target}.tgz"
+              gh release download "v${latest}" --repo cargo-bins/cargo-binstall --pattern "$asset" --dir /tmp --clobber
+              if ! gh attestation verify "/tmp/${asset}" --repo cargo-bins/cargo-binstall > /dev/null; then
+                findings+=("- cargo-binstall ${latest} is available, but \`${asset}\` **failed attestation verification**. Do not bump until this is understood.")
+                attested=false
+                break
+              fi
+              digests="${digests}    ${target}: $(sha256sum "/tmp/${asset}" | cut -d' ' -f1)"$'\n'
+            done
+            if [ "$attested" = true ]; then
+              findings+=("- cargo-binstall is pinned at **${pinned}**; **${latest}** is available. Attestations verified. In \`${script}\`, set \`BINSTALL_VERSION=\"${latest}\"\` and the two \`BINSTALL_SHA256\` values:"$'\n\n'"\`\`\`"$'\n'"${digests}\`\`\`")
+            fi
+          fi
+
+          # --- AWS CLI signing key: vendored, so its expiry has to be watched
+          key=install/keys/aws-cli.asc
+          expires=$(gpg --show-keys --with-colons "$key" | awk -F: '/^pub:/ {print $7; exit}')
+          if [ -z "$expires" ]; then
+            findings+=("- Could not read an expiry from \`${key}\`. The check itself may need fixing.")
+          elif [ "$expires" -lt $(( $(date +%s) + 60 * 86400 )) ]; then
+            findings+=("- The vendored AWS CLI signing key \`${key}\` expires on **$(date -u -d "@${expires}" +%F)**. Once it does, Ubuntu bootstraps refuse to install the AWS CLI. Refresh it from the public key block in the AWS CLI install guide; the fingerprint must stay \`FB5DB77FD5C118B80511ADA8A6310ACC4672475C\`.")
+          fi
+
+          existing=$(gh issue list --state open --search "\"${ISSUE_TITLE}\" in:title" --json number -q '.[0].number')
+
+          if [ ${#findings[@]} -eq 0 ]; then
+            echo "All pins current."
+            if [ -n "$existing" ]; then
+              gh issue close "$existing" --comment "All pins current as of $(date -u +%F). Closing."
+            fi
+            exit 0
+          fi
+
+          body=$(printf '%s\n\n' "Found by the [Pin Check workflow](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) on $(date -u +%F)." "${findings[@]}")
+          printf '%s\n' "$body"
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body "$body"
+          else
+            gh issue create --title "$ISSUE_TITLE" --body "$body"
+          fi
