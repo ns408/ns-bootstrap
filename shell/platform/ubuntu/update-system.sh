@@ -3,7 +3,7 @@
 #
 # Two tiers:
 #   update-apt-daily    — apt packages only, background-safe
-#   update-my-system    — Full update (snap, flatpak, mise, Rust CLI tools, omz), may need sudo
+#   update-my-system    — Full update (snap, flatpak, mise, Rust CLI tools, pinned omz and plugins), may need sudo
 #
 # Scheduled via systemd user timers (see scripts/scheduled-update-*.sh)
 
@@ -31,6 +31,7 @@ update-apt-daily() {
 update-my-system() {
   local log crate
   local binstall_list="${NS_BOOTSTRAP_DIR:-${HOME}/ns-bootstrap}/packages/binstall-tools.ubuntu"
+  local sync_pins="${NS_BOOTSTRAP_DIR:-${HOME}/ns-bootstrap}/install/common/sync-git-pins.sh"
   log="${_update_log_dir}/update-system-$(date +%Y%m%d).log"
   mkdir -p "$_update_log_dir"
 
@@ -69,10 +70,12 @@ update-my-system() {
       done < "$binstall_list"
     fi
 
-    # oh-my-zsh
-    if command -v omz &>/dev/null; then
-      echo -e "\n--- oh-my-zsh ---"
-      "${ZSH}/tools/upgrade.sh"
+    # oh-my-zsh, its plugins and the vim plugins: moved to the commits pinned in
+    # packages/git-pins, never to whatever upstream holds today. Pins advance
+    # through the monthly Git Pin Bump review, or by hand for an urgent fix.
+    if [[ -f "$sync_pins" ]]; then
+      echo -e "\n--- Pinned repositories (oh-my-zsh, plugins) ---"
+      bash "$sync_pins" || echo "Some pinned repositories were not updated; see above"
     fi
 
     # Pending security updates

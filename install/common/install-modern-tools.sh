@@ -279,30 +279,6 @@ PIN
     log_info "Ubuntu modern tools installed successfully!"
 fi
 
-# === Install oh-my-zsh custom plugins ===
-ZSH_CUSTOM="${ZSH_CUSTOM:-${HOME}/.oh-my-zsh/custom}"
-if [[ -d "${HOME}/.oh-my-zsh" ]]; then
-    log_info "Installing oh-my-zsh custom plugins..."
-
-    if [[ ! -d "${ZSH_CUSTOM}/plugins/fzf-tab" ]]; then
-        git clone https://github.com/Aloxaf/fzf-tab "${ZSH_CUSTOM}/plugins/fzf-tab"
-    fi
-
-    if [[ ! -d "${ZSH_CUSTOM}/plugins/zsh-autosuggestions" ]]; then
-        git clone https://github.com/zsh-users/zsh-autosuggestions "${ZSH_CUSTOM}/plugins/zsh-autosuggestions"
-    fi
-
-    if [[ ! -d "${ZSH_CUSTOM}/plugins/zsh-syntax-highlighting" ]]; then
-        git clone https://github.com/zsh-users/zsh-syntax-highlighting "${ZSH_CUSTOM}/plugins/zsh-syntax-highlighting"
-    fi
-
-    if [[ ! -d "${ZSH_CUSTOM}/plugins/zsh-completions" ]]; then
-        git clone https://github.com/zsh-users/zsh-completions "${ZSH_CUSTOM}/plugins/zsh-completions"
-    fi
-
-    log_info "oh-my-zsh custom plugins installed"
-fi
-
 echo ""
 log_info "=== Installation Complete ==="
 echo ""

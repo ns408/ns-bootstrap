@@ -22,8 +22,9 @@ jobs:
           scandir: .
           severity: warning
           ignore_paths: dotfiles/shell
-          # recprompt.sh is zsh-only (shellcheck has no zsh mode); linted via zsh -n.
-          ignore_names: recprompt.sh
+          # recprompt.sh and apply-git-pins.zsh are zsh-only (shellcheck has no
+          # zsh mode); both are linted via zsh -n in the zsh-syntax job.
+          ignore_names: recprompt.sh apply-git-pins.zsh
         env:
           SHELLCHECK_OPTS: --shell=bash --exclude=SC1090,SC1091
 
@@ -40,7 +41,9 @@ jobs:
         run: zsh -n dotfiles/shell/.zprofile
 
       - name: Check zsh-only function files syntax
-        run: zsh -n shell/functions/recprompt.sh
+        run: |
+          zsh -n shell/functions/recprompt.sh
+          zsh -n shell/apply-git-pins.zsh
 
   bats-tests:
     name: Bats Tests

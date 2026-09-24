@@ -1,0 +1,15 @@
+# Git repositories checked out at an exact commit, never at whatever the
+# upstream default branch holds on the day. install/common/sync-git-pins.sh
+# applies these: at bootstrap, in update-my-system, and in each account's next
+# shell after this file changes (shell/apply-git-pins.zsh). The monthly Git Pin Bump
+# workflow proposes moving them, to the commit each branch held 14 days
+# earlier by GitHub's push records. Bump by hand for an urgent fix.
+#
+# kind       name                     repo                               commit
+omz          oh-my-zsh                ohmyzsh/ohmyzsh                    cd320b5506998f32284d37799592cb2ba43a3188
+zsh-plugin   zsh-autosuggestions      zsh-users/zsh-autosuggestions      85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5
+zsh-plugin   zsh-syntax-highlighting  zsh-users/zsh-syntax-highlighting  2fc57d63067c18b1100ecdbf684fa5baf49459d1
+zsh-plugin   zsh-completions          zsh-users/zsh-completions          de02bb84ab0af51e328c6ae85ab5555397c31277
+zsh-plugin   fzf-tab                  Aloxaf/fzf-tab                     24105b15714bfec37989ed5c5b6e60f572253019
+vim-plugin   fzf.vim                  junegunn/fzf.vim                   8a0068127ac9ee23d71dab2944ce995726bef462
+vim-plugin   vim-ruby                 vim-ruby/vim-ruby                  bf3a5994ce63796db7b1b04aea92772271f387aa

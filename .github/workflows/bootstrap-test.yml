@@ -94,6 +94,11 @@ jobs:
           [ "$current" -eq "$expected" ] \
             || { echo "Expected ${expected} tools already current, found ${current}"; exit 1; }
           echo "All ${expected} Rust tools already current; nothing reinstalled"
+          grep -q -- "--- Pinned repositories" /tmp/update.log \
+            || { echo "update-my-system never reached the pinned repositories"; exit 1; }
+          if grep -qE "^.{0,80}: [0-9a-f]{12} → " /tmp/update.log; then
+            echo "update-my-system moved a pinned repository that bootstrap had just set"; exit 1
+          fi
 
       - name: Verify security tools
         run: |
@@ -107,6 +112,77 @@ jobs:
       - name: Verify dotfiles symlinked
         run: |
           su - testuser -c "test -L ~/.vimrc && test -L ~/.inputrc && test -L ~/.gitignore_global"
+
+      # Every repository in packages/git-pins must sit at exactly its pinned
+      # commit, never at whatever the upstream branch held on the day.
+      - name: Verify pinned repositories
+        shell: bash
+        run: |
+          cat > /tmp/verify-pins.sh <<'EOF'
+          bad=0
+          while read -r kind name repo commit; do
+            case "$kind" in
+              ""|\#*)     continue ;;
+              omz)        dest="$HOME/.oh-my-zsh" ;;
+              zsh-plugin) dest="$HOME/.oh-my-zsh/custom/plugins/$name" ;;
+              vim-plugin) dest="$HOME/.vim/pack/plugins/start/$name" ;;
+            esac
+            head=$(git -C "$dest" rev-parse HEAD 2>/dev/null || echo missing)
+            if [ "$head" = "$commit" ]; then
+              echo "ok   $name at ${commit:0:12} ($repo)"
+            else
+              echo "FAIL $name is at $head, pinned $commit"; bad=1
+            fi
+          done < "$1"
+          exit $bad
+          EOF
+          su - testuser -c "bash /tmp/verify-pins.sh $GITHUB_WORKSPACE/packages/git-pins"
+          su - testuser -c "test -f ~/.cache/ns-bootstrap/git-pins.applied" \
+            || { echo "bootstrap did not record the pins it applied"; exit 1; }
+
+      # A pin bump is only safe to merge if the shell still starts with it, so
+      # load the real .zshrc interactively and check each pinned plugin loaded.
+      - name: Start an interactive zsh on the pinned plugins
+        shell: bash
+        run: |
+          cat > /tmp/zsh-smoke.zsh <<'EOF'
+          (( ${+functions[omz]} ))                     && print "ok   oh-my-zsh"               || { print "FAIL oh-my-zsh not loaded"; exit 1 }
+          (( ${+functions[_zsh_autosuggest_start]} ))  && print "ok   zsh-autosuggestions"     || { print "FAIL zsh-autosuggestions"; exit 1 }
+          (( ${+ZSH_HIGHLIGHT_VERSION} ))              && print "ok   zsh-syntax-highlighting" || { print "FAIL zsh-syntax-highlighting"; exit 1 }
+          (( ${+functions[enable-fzf-tab]} ))          && print "ok   fzf-tab"                 || { print "FAIL fzf-tab"; exit 1 }
+          (( ${fpath[(Ie)$ZSH/custom/plugins/zsh-completions/src]} )) && print "ok   zsh-completions" || { print "FAIL zsh-completions"; exit 1 }
+          EOF
+          su - testuser -c "zsh -i -c 'source /tmp/zsh-smoke.zsh'" > /tmp/zsh.log 2>&1 || status=$?
+          cat /tmp/zsh.log
+          if grep -qE "plugin '.*' not found|parse error" /tmp/zsh.log; then
+            echo "oh-my-zsh reported a broken plugin or a parse error"; exit 1
+          fi
+          if grep -q "applying" /tmp/zsh.log; then
+            echo "the first shell re-applied pins that bootstrap had just applied"; exit 1
+          fi
+          exit "${status:-0}"
+
+      # How a merged bump reaches an account: once the clone holds the new pin
+      # file, the account's next interactive shell applies it, with no
+      # update-my-system involved. Simulated by moving one pin to a real commit
+      # two behind it, then checking the plugin moved exactly once.
+      - name: A pin change reaches the account at its next shell
+        shell: bash
+        run: |
+          pinned=$(awk '$2 == "zsh-syntax-highlighting" {print $4}' packages/git-pins)
+          older=1d85c692615a25fe2293bdd44b34c217d5d2bf04
+          sed -i "s/$pinned/$older/" packages/git-pins
+          su - testuser -c "zsh -i -c 'git -C ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting rev-parse HEAD'" > /tmp/bump.log 2>&1 || true
+          cat /tmp/bump.log
+          grep -q "pinned plugins changed, applying" /tmp/bump.log \
+            || { echo "the shell did not notice the pin change"; exit 1; }
+          grep -qx "$older" /tmp/bump.log \
+            || { echo "zsh-syntax-highlighting was not moved to the new pin"; exit 1; }
+          su - testuser -c "zsh -i -c true" > /tmp/again.log 2>&1 || true
+          if grep -q "applying" /tmp/again.log; then
+            echo "the following shell applied the same pins again"; exit 1
+          fi
+          echo "The pin change was applied by the next shell, once."
 
   macos-smoke:
     name: macOS Smoke Test

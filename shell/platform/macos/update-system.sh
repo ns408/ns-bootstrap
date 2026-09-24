@@ -3,7 +3,7 @@
 #
 # Two tiers:
 #   update-brew-daily   — Formulae only, no sudo, safe for background/launchd
-#   update-my-system    — Full update (casks, mise, omz, softwareupdate list), may need sudo
+#   update-my-system    — Full update (casks, mise, pinned omz and plugins, softwareupdate list), may need sudo
 #   update-macos-install — Actually install macOS updates (may reboot)
 #
 # Scheduled via launchd (see scripts/scheduled-update-*.sh)
@@ -30,6 +30,7 @@ update-brew-daily() {
 # --- Tier 2: Interactive daily in tmux (may need sudo) ---
 update-my-system() {
   local log
+  local sync_pins="${NS_BOOTSTRAP_DIR:-${HOME}/ns-bootstrap}/install/common/sync-git-pins.sh"
   log="${_update_log_dir}/update-system-$(date +%Y%m%d).log"
   mkdir -p "$_update_log_dir"
 
@@ -66,10 +67,12 @@ update-my-system() {
       mise upgrade
     fi
 
-    # oh-my-zsh
-    if command -v omz &>/dev/null; then
-      echo -e "\n--- oh-my-zsh ---"
-      "${ZSH}/tools/upgrade.sh"
+    # oh-my-zsh, its plugins and the vim plugins: moved to the commits pinned in
+    # packages/git-pins, never to whatever upstream holds today. Pins advance
+    # through the monthly Git Pin Bump review, or by hand for an urgent fix.
+    if [[ -f "$sync_pins" ]]; then
+      echo -e "\n--- Pinned repositories (oh-my-zsh, plugins) ---"
+      bash "$sync_pins" || echo "Some pinned repositories were not updated; see above"
     fi
 
     # Microsoft apps
