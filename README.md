@@ -167,14 +167,15 @@ sudo launchctl bootout system/com.ns-bootstrap.update-daily
 
 ### Scheduled Updates
 
-Bootstrap installs daily scheduled update agents (launchd on macOS, systemd timers on Ubuntu):
+Bootstrap installs one scheduled job (launchd on macOS, a systemd timer on Ubuntu):
 
 | Schedule | What | Requires |
 |----------|------|----------|
-| 07:00 daily | `update-brew-daily` — Homebrew formulae only | No interaction |
-| 07:30 daily | `update-my-system` — Casks, mise, pinned omz and plugins, App Store, softwareupdate | Admin GUI session |
+| 07:00 daily | `update-brew-daily` — Homebrew formulae only (`update-apt-daily` on Ubuntu) | No interaction |
 
-**GUI session required:** LaunchAgents in `~/Library/LaunchAgents/` only load when the admin account is logged in via the macOS GUI. With Fast User Switching, the admin account can run in the background while you use the daily account — the agents will still fire. If the admin account is not logged in to the GUI, agents are deferred until next login.
+`update-my-system` (casks, mise, App Store, `softwareupdate`) is **on demand**: nothing schedules it, so run it yourself when you are at the machine. The App Store and macOS updates need an active GUI session, some casks prompt for sudo, and macOS installs can reboot. Pinned oh-my-zsh and plugins don't depend on it: each account applies new pins the next time it opens a shell.
+
+**Two accounts:** the default daily job is a LaunchAgent in `~/Library/LaunchAgents/`, and a LaunchAgent only runs while its owner is logged in to the GUI. If the account that owns Homebrew is not your daily login, as in the two-account setup above, install the LaunchDaemon from `scripts/launchd-daemon/` instead. It runs as the Homebrew owner whoever is logged in, and bootstrap warns when it detects this mismatch.
 
 **Note:** `mas` (Mac App Store) and `softwareupdate` require an active Aqua/GUI session and will not work via `su` or SSH.
 
