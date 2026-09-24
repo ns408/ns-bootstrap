@@ -137,6 +137,8 @@ jobs:
           exit $bad
           EOF
           su - testuser -c "bash /tmp/verify-pins.sh $GITHUB_WORKSPACE/packages/git-pins"
+          su - testuser -c "test -f ~/.cache/ns-bootstrap/git-pins.applied" \
+            || { echo "bootstrap did not record the pins it applied"; exit 1; }
 
       # A pin bump is only safe to merge if the shell still starts with it, so
       # load the real .zshrc interactively and check each pinned plugin loaded.
@@ -155,7 +157,32 @@ jobs:
           if grep -qE "plugin '.*' not found|parse error" /tmp/zsh.log; then
             echo "oh-my-zsh reported a broken plugin or a parse error"; exit 1
           fi
+          if grep -q "applying" /tmp/zsh.log; then
+            echo "the first shell re-applied pins that bootstrap had just applied"; exit 1
+          fi
           exit "${status:-0}"
+
+      # How a merged bump reaches an account: once the clone holds the new pin
+      # file, the account's next interactive shell applies it, with no
+      # update-my-system involved. Simulated by moving one pin to a real commit
+      # two behind it, then checking the plugin moved exactly once.
+      - name: A pin change reaches the account at its next shell
+        shell: bash
+        run: |
+          pinned=$(awk '$2 == "zsh-syntax-highlighting" {print $4}' packages/git-pins)
+          older=1d85c692615a25fe2293bdd44b34c217d5d2bf04
+          sed -i "s/$pinned/$older/" packages/git-pins
+          su - testuser -c "zsh -i -c 'git -C ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting rev-parse HEAD'" > /tmp/bump.log 2>&1 || true
+          cat /tmp/bump.log
+          grep -q "pinned plugins changed, applying" /tmp/bump.log \
+            || { echo "the shell did not notice the pin change"; exit 1; }
+          grep -qx "$older" /tmp/bump.log \
+            || { echo "zsh-syntax-highlighting was not moved to the new pin"; exit 1; }
+          su - testuser -c "zsh -i -c true" > /tmp/again.log 2>&1 || true
+          if grep -q "applying" /tmp/again.log; then
+            echo "the following shell applied the same pins again"; exit 1
+          fi
+          echo "The pin change was applied by the next shell, once."
 
   macos-smoke:
     name: macOS Smoke Test

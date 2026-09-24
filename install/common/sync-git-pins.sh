@@ -16,6 +16,9 @@ source "${SCRIPT_DIR}/../lib/common.sh"
 PINS_FILE="${GIT_PINS_FILE:-${SCRIPT_DIR}/../../packages/git-pins}"
 # Overridable so the tests can serve repositories from local paths.
 URL_BASE="${GIT_PINS_URL_BASE:-https://github.com}"
+# Records the pin list last applied in full, so shell/apply-git-pins.zsh can
+# tell at shell start, without running anything, whether the pins have moved.
+APPLIED="${XDG_CACHE_HOME:-${HOME}/.cache}/ns-bootstrap/git-pins.applied"
 
 dest_for() {
     case "$1" in
@@ -72,13 +75,21 @@ sync_repo() {
     log_info "${name}: ${head:0:12}${head:+ → }${commit:0:12}"
 }
 
+# Read once: a git pull landing mid-run must not mix old and new pins, and the
+# record written below has to be exactly the list that was applied.
+pins=$(<"$PINS_FILE")
+
 failed=0
 # oh-my-zsh first: its checkout has to exist before plugins go inside it.
 for kind in omz zsh-plugin vim-plugin; do
     while read -r k name repo commit; do
         [[ -z "$k" || "$k" == \#* || "$k" != "$kind" ]] && continue
         sync_repo "$name" "$repo" "$commit" "$(dest_for "$k" "$name")" || failed=1
-    done < "$PINS_FILE"
+    done <<< "$pins"
 done
 
+if [[ "$failed" -eq 0 ]]; then
+    mkdir -p "$(dirname "$APPLIED")"
+    printf '%s\n' "$pins" > "$APPLIED"
+fi
 exit "$failed"

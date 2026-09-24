@@ -114,7 +114,7 @@ Run `modern-tools-help` for a full reference.
 
 Both macOS and Ubuntu use zsh with the same stack:
 
-- **Framework:** Oh-My-Zsh (plugins, completions, git aliases). Oh-My-Zsh, its add-on plugins and the vim plugins are checked out at commits pinned in `packages/git-pins`. A monthly workflow proposes moving each pin to the commit its upstream branch held 14 days earlier, by GitHub's push records, and holds back any repository whose branch was force-pushed.
+- **Framework:** Oh-My-Zsh (plugins, completions, git aliases). Oh-My-Zsh, its add-on plugins and the vim plugins are checked out at commits pinned in `packages/git-pins`. A monthly workflow proposes moving each pin to the commit its upstream branch held 14 days earlier, by GitHub's push records, and holds back any repository whose branch was force-pushed. After you merge a bump and `git pull` the clone, each account applies the new pins the next time it opens a shell.
 - **Prompt:** Starship (Rust-based, cross-shell, context-aware)
 - **History:** Atuin (SQLite-backed, fuzzy search, encrypted sync)
 - **Enhancements:** zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab

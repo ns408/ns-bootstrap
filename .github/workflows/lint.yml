@@ -40,7 +40,9 @@ jobs:
         run: zsh -n dotfiles/shell/.zprofile
 
       - name: Check zsh-only function files syntax
-        run: zsh -n shell/functions/recprompt.sh
+        run: |
+          zsh -n shell/functions/recprompt.sh
+          zsh -n shell/apply-git-pins.zsh
 
   bats-tests:
     name: Bats Tests

@@ -27,9 +27,11 @@ plugins=(
   copybuffer                # Ctrl+O copies command line to clipboard
 )
 
-# Updates come from the commits pinned in packages/git-pins, applied by
-# update-my-system; oh-my-zsh must not pull master on its own.
+# oh-my-zsh and its plugins follow the commits pinned in packages/git-pins,
+# so oh-my-zsh must not pull master on its own. A shell started after a
+# pin bump is pulled applies it; this .zshrc's resolved path gives the repo.
 zstyle ':omz:update' mode disabled
+[[ -r "${${(%):-%x}:A:h:h:h}/shell/apply-git-pins.zsh" ]] && source "${${(%):-%x}:A:h:h:h}/shell/apply-git-pins.zsh"
 
 source "${ZSH}/oh-my-zsh.sh"
 

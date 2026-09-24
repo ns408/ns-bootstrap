@@ -163,3 +163,28 @@ plugin_dir() {
     [[ "$output" == *"unset: no commit pinned yet"* ]]
     [[ "$(git -C "$(plugin_dir plug)" rev-parse HEAD)" == "$pinned" ]]
 }
+
+@test "a successful sync records exactly the pins it applied" {
+    upstream owner/plug
+    local pinned
+    pinned=$(commit_to owner/plug one)
+    pins "# header" "zsh-plugin plug owner/plug ${pinned}"
+
+    run "$SYNC"
+
+    [[ "$status" -eq 0 ]]
+    [[ "$(cat "${HOME}/.cache/ns-bootstrap/git-pins.applied")" == "$(cat "$GIT_PINS_FILE")" ]]
+}
+
+@test "a sync that fails records nothing, so the next shell retries" {
+    upstream owner/plug
+    local pinned
+    pinned=$(commit_to owner/plug one)
+    pins "zsh-plugin plug owner/plug ${pinned}" \
+         "zsh-plugin unset owner/unset 0000000000000000000000000000000000000000"
+
+    run "$SYNC"
+
+    [[ "$status" -eq 1 ]]
+    [[ ! -e "${HOME}/.cache/ns-bootstrap/git-pins.applied" ]]
+}

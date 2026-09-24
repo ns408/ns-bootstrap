@@ -53,7 +53,7 @@ jobs:
             git push --force --quiet origin "$BRANCH"
             gh workflow run bootstrap-test.yml --ref "$BRANCH"
             runs="${repo_url}/actions/workflows/bootstrap-test.yml?query=branch%3A$(jq -rn --arg b "$BRANCH" '$b|@uri')"
-            next="Read the upstream changes linked above. If they look right and [Bootstrap Test on the branch](${runs}) passes, **[open the pull request](${repo_url}/compare/main...${BRANCH}?expand=1)** and merge it. Each machine then moves to the new pins on its next \`update-my-system\`."
+            next="Read the upstream changes linked above. If they look right and [Bootstrap Test on the branch](${runs}) passes, **[open the pull request](${repo_url}/compare/main...${BRANCH}?expand=1)** and merge it. Then run \`git pull\` in the ns-bootstrap clone on each machine: every account applies the new pins the next time it opens a shell."
           else
             if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
               git push --quiet origin --delete "$BRANCH"

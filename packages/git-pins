@@ -1,6 +1,7 @@
 # Git repositories checked out at an exact commit, never at whatever the
 # upstream default branch holds on the day. install/common/sync-git-pins.sh
-# applies these (bootstrap and update-my-system); the monthly Git Pin Bump
+# applies these: at bootstrap, in update-my-system, and in each account's next
+# shell after this file changes (shell/apply-git-pins.zsh). The monthly Git Pin Bump
 # workflow proposes moving them, to the commit each branch held 14 days
 # earlier by GitHub's push records. Bump by hand for an urgent fix.
 #
