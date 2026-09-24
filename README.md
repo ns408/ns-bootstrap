@@ -114,7 +114,7 @@ Run `modern-tools-help` for a full reference.
 
 Both macOS and Ubuntu use zsh with the same stack:
 
-- **Framework:** Oh-My-Zsh (plugins, completions, git aliases)
+- **Framework:** Oh-My-Zsh (plugins, completions, git aliases). Oh-My-Zsh, its add-on plugins and the vim plugins are checked out at commits pinned in `packages/git-pins`. A monthly workflow proposes moving each pin to the commit its upstream branch held 14 days earlier, by GitHub's push records, and holds back any repository whose branch was force-pushed.
 - **Prompt:** Starship (Rust-based, cross-shell, context-aware)
 - **History:** Atuin (SQLite-backed, fuzzy search, encrypted sync)
 - **Enhancements:** zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab
@@ -172,7 +172,7 @@ Bootstrap installs daily scheduled update agents (launchd on macOS, systemd time
 | Schedule | What | Requires |
 |----------|------|----------|
 | 07:00 daily | `update-brew-daily` — Homebrew formulae only | No interaction |
-| 07:30 daily | `update-my-system` — Casks, mise, omz, App Store, softwareupdate | Admin GUI session |
+| 07:30 daily | `update-my-system` — Casks, mise, pinned omz and plugins, App Store, softwareupdate | Admin GUI session |
 
 **GUI session required:** LaunchAgents in `~/Library/LaunchAgents/` only load when the admin account is logged in via the macOS GUI. With Fast User Switching, the admin account can run in the background while you use the daily account — the agents will still fire. If the admin account is not logged in to the GUI, agents are deferred until next login.
 
@@ -182,7 +182,7 @@ To run updates manually:
 
 ```bash
 update-brew-daily    # Quick — formulae only
-update-my-system     # Full — casks, mise, omz, softwareupdate list
+update-my-system     # Full — casks, mise, pinned omz and plugins, softwareupdate list
 update-macos-install # Manual — install macOS updates (may reboot)
 ```
 

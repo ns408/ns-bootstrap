@@ -1,0 +1,79 @@
+name: Git Pin Bump
+
+# Proposes moving the pins in packages/git-pins (oh-my-zsh, zsh and vim
+# plugins) to the commit each upstream branch held 14 days earlier, by GitHub's
+# push records. scripts/bump-git-pins.sh holds the rules, including holding a
+# pin back after a force-push.
+#
+# It pushes a branch and keeps an issue open with a link to create the pull
+# request, rather than opening the pull request itself: one opened with the
+# workflow token would not trigger the Lint checks main requires, and allowing
+# Actions to open pull requests also allows it to approve them. Opening it
+# yourself runs Lint as normal. Bootstrap Test is started on the branch here.
+
+on:
+  schedule:
+    - cron: '0 9 1 * *'  # First of each month at 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write  # push the bump branch
+  issues: write    # keep the review issue current
+  actions: write   # start Bootstrap Test on the bump branch
+
+jobs:
+  bump:
+    name: Propose pin bumps
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: bot/git-pin-bump
+      ISSUE_TITLE: Pinned plugin updates ready for review
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Move pins past the cooldown
+        run: scripts/bump-git-pins.sh --report /tmp/report.md
+
+      - name: Push the branch and update the review issue
+        run: |
+          repo_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          existing=$(gh issue list --state open --search "\"${ISSUE_TITLE}\" in:title" --json number -q '.[0].number')
+          changed=true
+          git diff --quiet -- packages/git-pins && changed=false
+          held=false
+          grep -q "Held back for review" /tmp/report.md && held=true
+
+          if [ "$changed" = true ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git switch -C "$BRANCH"
+            git add packages/git-pins
+            git commit --quiet -m "deps: move pinned plugins past the 14-day cooldown"
+            git push --force --quiet origin "$BRANCH"
+            gh workflow run bootstrap-test.yml --ref "$BRANCH"
+            runs="${repo_url}/actions/workflows/bootstrap-test.yml?query=branch%3A$(jq -rn --arg b "$BRANCH" '$b|@uri')"
+            next="Read the upstream changes linked above. If they look right and [Bootstrap Test on the branch](${runs}) passes, **[open the pull request](${repo_url}/compare/main...${BRANCH}?expand=1)** and merge it. Each machine then moves to the new pins on its next \`update-my-system\`."
+          else
+            if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+              git push --quiet origin --delete "$BRANCH"
+            fi
+            if [ "$held" = false ]; then
+              echo "Nothing to move and nothing held back."
+              if [ -n "$existing" ]; then
+                gh issue close "$existing" --comment "Pins are up to date with the 14-day cooldown as of $(date -u +%F). Closing."
+              fi
+              exit 0
+            fi
+            next="Nothing to merge this time. The repositories held back above need a look before their pins move; bump them by hand once you are satisfied."
+          fi
+
+          body=$(printf '%s\n\n%s\n\n%s\n' \
+            "Found by the [Git Pin Bump workflow](${repo_url}/actions/runs/${GITHUB_RUN_ID}) on $(date -u +%F)." \
+            "$(cat /tmp/report.md)" "$next")
+          printf '%s\n' "$body"
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body "$body"
+          else
+            gh issue create --title "$ISSUE_TITLE" --body "$body"
+          fi

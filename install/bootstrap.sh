@@ -417,23 +417,6 @@ if [[ -f "${PROJECT_ROOT}/dotfiles/vim/.vimrc" ]]; then
     symlink_file "${PROJECT_ROOT}/dotfiles/vim/.vimrc" "${HOME}/.vimrc"
 fi
 
-# Native vim packages (replaces pathogen) — clones from the network, so a
-# relink (which only re-points paths) skips them.
-if [[ -f "${PROJECT_ROOT}/dotfiles/vim/.vimrc" ]] && [[ "$RELINK" == false ]]; then
-    VIM_PACK="${HOME}/.vim/pack/plugins/start"
-    mkdir -p "$VIM_PACK"
-
-    vim_plugins="fzf.vim=https://github.com/junegunn/fzf.vim
-vim-ruby=https://github.com/vim-ruby/vim-ruby"
-
-    while IFS='=' read -r plugin url; do
-        if [[ ! -d "${VIM_PACK}/${plugin}" ]]; then
-            log_info "Installing vim plugin: ${plugin}..."
-            git clone --quiet "$url" "${VIM_PACK}/${plugin}"
-        fi
-    done <<< "$vim_plugins"
-fi
-
 # Inputrc
 if [[ -f "${PROJECT_ROOT}/dotfiles/misc/.inputrc" ]]; then
     symlink_file "${PROJECT_ROOT}/dotfiles/misc/.inputrc" "${HOME}/.inputrc"
@@ -479,37 +462,17 @@ if [[ "$RELINK" == true ]]; then
     exit 0
 fi
 
-# oh-my-zsh (install if missing — both platforms)
-# --keep-zshrc prevents OMZ from clobbering the already-symlinked .zshrc
-if [[ ! -d "${HOME}/.oh-my-zsh" ]]; then
-    log_info "Installing oh-my-zsh..."
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended --keep-zshrc
-fi
+# oh-my-zsh, its custom plugins and the vim plugins, each checked out at the
+# commit pinned in packages/git-pins rather than whatever upstream holds today.
+# This replaces oh-my-zsh's own installer, which ran from master via curl | sh
+# and, with --unattended --keep-zshrc, amounted to little more than a clone.
+log_info "Installing oh-my-zsh and plugins at their pinned commits..."
+bash "${PROJECT_ROOT}/install/common/sync-git-pins.sh"
 
 # Set zsh as default shell on Ubuntu (takes effect on next login)
 if [[ "$OS" == "ubuntu" ]] && [[ "$SHELL" != */zsh ]]; then
     log_info "Setting zsh as default shell (takes effect on next login)..."
     sudo usermod -s /usr/bin/zsh "$USER"
-fi
-
-# oh-my-zsh custom plugins (per-user, cloned into ~/.oh-my-zsh/custom/plugins)
-if [[ -d "${HOME}/.oh-my-zsh" ]]; then
-    ZSH_CUSTOM="${HOME}/.oh-my-zsh/custom"
-    log_info "Installing oh-my-zsh custom plugins..."
-
-    omz_plugins="zsh-autosuggestions=https://github.com/zsh-users/zsh-autosuggestions
-zsh-syntax-highlighting=https://github.com/zsh-users/zsh-syntax-highlighting
-zsh-completions=https://github.com/zsh-users/zsh-completions
-fzf-tab=https://github.com/Aloxaf/fzf-tab"
-
-    while IFS='=' read -r plugin url; do
-        if [[ ! -d "${ZSH_CUSTOM}/plugins/${plugin}" ]]; then
-            log_info "  Cloning ${plugin}..."
-            git clone --quiet "$url" "${ZSH_CUSTOM}/plugins/${plugin}"
-        else
-            log_info "  ${plugin} already installed"
-        fi
-    done <<< "$omz_plugins"
 fi
 
 # === Step 8: Initialize Secrets ===

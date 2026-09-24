@@ -26,6 +26,10 @@ plugins=(
   copybuffer                # Ctrl+O copies command line to clipboard
 )
 
+# Updates come from the commits pinned in packages/git-pins, applied by
+# update-my-system; oh-my-zsh must not pull master on its own.
+zstyle ':omz:update' mode disabled
+
 source "${ZSH}/oh-my-zsh.sh"
 
 # ─── Zsh Options ───────────────────────────────────────────────

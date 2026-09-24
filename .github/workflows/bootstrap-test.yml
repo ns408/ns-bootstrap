@@ -94,6 +94,11 @@ jobs:
           [ "$current" -eq "$expected" ] \
             || { echo "Expected ${expected} tools already current, found ${current}"; exit 1; }
           echo "All ${expected} Rust tools already current; nothing reinstalled"
+          grep -q -- "--- Pinned repositories" /tmp/update.log \
+            || { echo "update-my-system never reached the pinned repositories"; exit 1; }
+          if grep -qE "^.{0,80}: [0-9a-f]{12} → " /tmp/update.log; then
+            echo "update-my-system moved a pinned repository that bootstrap had just set"; exit 1
+          fi
 
       - name: Verify security tools
         run: |
@@ -107,6 +112,50 @@ jobs:
       - name: Verify dotfiles symlinked
         run: |
           su - testuser -c "test -L ~/.vimrc && test -L ~/.inputrc && test -L ~/.gitignore_global"
+
+      # Every repository in packages/git-pins must sit at exactly its pinned
+      # commit, never at whatever the upstream branch held on the day.
+      - name: Verify pinned repositories
+        shell: bash
+        run: |
+          cat > /tmp/verify-pins.sh <<'EOF'
+          bad=0
+          while read -r kind name repo commit; do
+            case "$kind" in
+              ""|\#*)     continue ;;
+              omz)        dest="$HOME/.oh-my-zsh" ;;
+              zsh-plugin) dest="$HOME/.oh-my-zsh/custom/plugins/$name" ;;
+              vim-plugin) dest="$HOME/.vim/pack/plugins/start/$name" ;;
+            esac
+            head=$(git -C "$dest" rev-parse HEAD 2>/dev/null || echo missing)
+            if [ "$head" = "$commit" ]; then
+              echo "ok   $name at ${commit:0:12} ($repo)"
+            else
+              echo "FAIL $name is at $head, pinned $commit"; bad=1
+            fi
+          done < "$1"
+          exit $bad
+          EOF
+          su - testuser -c "bash /tmp/verify-pins.sh $GITHUB_WORKSPACE/packages/git-pins"
+
+      # A pin bump is only safe to merge if the shell still starts with it, so
+      # load the real .zshrc interactively and check each pinned plugin loaded.
+      - name: Start an interactive zsh on the pinned plugins
+        shell: bash
+        run: |
+          cat > /tmp/zsh-smoke.zsh <<'EOF'
+          (( ${+functions[omz]} ))                     && print "ok   oh-my-zsh"               || { print "FAIL oh-my-zsh not loaded"; exit 1 }
+          (( ${+functions[_zsh_autosuggest_start]} ))  && print "ok   zsh-autosuggestions"     || { print "FAIL zsh-autosuggestions"; exit 1 }
+          (( ${+ZSH_HIGHLIGHT_VERSION} ))              && print "ok   zsh-syntax-highlighting" || { print "FAIL zsh-syntax-highlighting"; exit 1 }
+          (( ${+functions[enable-fzf-tab]} ))          && print "ok   fzf-tab"                 || { print "FAIL fzf-tab"; exit 1 }
+          (( ${fpath[(Ie)$ZSH/custom/plugins/zsh-completions/src]} )) && print "ok   zsh-completions" || { print "FAIL zsh-completions"; exit 1 }
+          EOF
+          su - testuser -c "zsh -i -c 'source /tmp/zsh-smoke.zsh'" > /tmp/zsh.log 2>&1 || status=$?
+          cat /tmp/zsh.log
+          if grep -qE "plugin '.*' not found|parse error" /tmp/zsh.log; then
+            echo "oh-my-zsh reported a broken plugin or a parse error"; exit 1
+          fi
+          exit "${status:-0}"
 
   macos-smoke:
     name: macOS Smoke Test
