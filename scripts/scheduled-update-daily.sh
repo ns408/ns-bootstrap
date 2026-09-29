@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Scheduled: Background daily update (no interaction needed)
-# Called by launchd (macOS) or systemd timer (Ubuntu)
+# Called by launchd on macOS: runs update-brew-daily (formulae only, no sudo).
 #
-# macOS: runs update-brew-daily (formulae only, no sudo)
-# Ubuntu: runs update-apt-daily (apt update/upgrade, needs sudo)
+# Ubuntu has no job here. Its daily security updates come from
+# unattended-upgrades, which apt's own timer runs as root; a per-user job
+# could not run apt, as sudo has no terminal to ask for a password on.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,7 +14,4 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 if [[ "$OSTYPE" == "darwin"* ]]; then
     source "${PROJECT_ROOT}/shell/platform/macos/update-system.sh"
     update-brew-daily
-elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    source "${PROJECT_ROOT}/shell/platform/ubuntu/update-system.sh"
-    update-apt-daily
 fi

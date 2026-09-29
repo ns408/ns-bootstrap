@@ -18,7 +18,7 @@
 │  ────────             ───────                   ─────────────────   │
 │  dotfiles/ ────▶ ~/   secrets/                  scripts/            │
 │  symlinked            bootstrap-secrets.sh      launchd/ (macOS)    │
-│                        ▼ 1Password / pass        systemd/ (Ubuntu)  │
+│                        ▼ 1Password / pass        none (Ubuntu)      │
 │                        ~/.gitconfig                                 │
 │                                                                     │
 │  Git Hooks            CI                                            │
@@ -235,7 +235,7 @@ ON-DEMAND (run yourself) ─ update-my-system ───────────�
 
 Platform agents (daily tier only):
   macOS  → ~/Library/LaunchAgents/com.ns-bootstrap.update-daily.plist
-  Ubuntu → ~/.config/systemd/user/ns-bootstrap-update-daily.timer
+  Ubuntu → none of its own: unattended-upgrades, run as root by apt's timer
 ```
 
 Why mas / casks / macOS installs are NOT auto-scheduled: `mas` needs an
@@ -315,7 +315,6 @@ ns-bootstrap/
 │   ├── scheduled-update-{daily,interactive}.sh
 │   ├── launchd/*.plist.template          # daily LaunchAgent (default)
 │   ├── launchd-daemon/*.daemon.plist.template  # opt-in LaunchDaemon (multi-account)
-│   ├── systemd/*.{service,timer}
 │   └── hooks/commit-msg
 ├── tests/
 │   ├── common.bats

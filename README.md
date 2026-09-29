@@ -62,7 +62,7 @@ shell/             # Functions, aliases, platform-specific scripts
 packages/          # Brewfiles (macOS) and apt-packages (Ubuntu)
 install/           # Bootstrap installer and tool scripts
 secrets/           # Secrets management bootstrap
-scripts/           # Scheduled updates, launchd/systemd agents
+scripts/           # Scheduled updates, launchd agents
 .ai/               # Project documentation and knowledge base
   CONTEXT.md       #   Project conventions and structure
   ARCHITECTURE.md  #   System architecture diagrams
@@ -167,11 +167,11 @@ sudo launchctl bootout system/com.ns-bootstrap.update-daily
 
 ### Scheduled Updates
 
-Bootstrap installs one scheduled job (launchd on macOS, a systemd timer on Ubuntu):
+On macOS, bootstrap installs one scheduled job (launchd). On Ubuntu there is none of its own: daily security updates come from Ubuntu's `unattended-upgrades`, which bootstrap installs and apt's own timer runs as root.
 
 | Schedule | What | Requires |
 |----------|------|----------|
-| 07:00 daily | `update-brew-daily` — Homebrew formulae only (`update-apt-daily` on Ubuntu) | No interaction |
+| 07:00 daily | `update-brew-daily`: Homebrew formulae only | No interaction |
 
 `update-my-system` (casks, mise, App Store, `softwareupdate`) is **on demand**: nothing schedules it, so run it yourself when you are at the machine. The App Store and macOS updates need an active GUI session, some casks prompt for sudo, and macOS installs can reboot. Pinned oh-my-zsh and plugins don't depend on it: each account applies new pins the next time it opens a shell.
 

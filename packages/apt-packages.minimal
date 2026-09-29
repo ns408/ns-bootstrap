@@ -23,3 +23,5 @@ fd-find
 bat
 fzf
 btop
+# Daily security updates, applied as root by apt's own timer
+unattended-upgrades
