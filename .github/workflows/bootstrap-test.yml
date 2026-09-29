@@ -40,6 +40,19 @@ jobs:
           echo "testuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
           chown -R testuser:testuser "$GITHUB_WORKSPACE"
 
+      # Machines bootstrapped before issue #26 was fixed carry a per-user
+      # daily update timer that never ran. Seed one, so the checks below prove
+      # bootstrap removes it rather than merely not installing it.
+      - name: Seed the old per-user update timer
+        run: |
+          su - testuser -c '
+            d=~/.config/systemd/user
+            mkdir -p "$d/timers.target.wants"
+            printf "[Service]\n" > "$d/ns-bootstrap-update-daily.service"
+            printf "[Timer]\n" > "$d/ns-bootstrap-update-daily.timer"
+            ln -s ../ns-bootstrap-update-daily.timer "$d/timers.target.wants/ns-bootstrap-update-daily.timer"
+          '
+
       - name: Run bootstrap
         run: |
           su - testuser -c "cd $GITHUB_WORKSPACE && ./install/bootstrap.sh --profile ${{ matrix.profile }} --yes"
@@ -134,7 +147,8 @@ jobs:
           else
             echo "FAIL apt-daily-upgrade.timer not enabled"; fail=1
           fi
-          left=$(ls /home/testuser/.config/systemd/user/ns-bootstrap-update-daily.* 2>/dev/null)
+          left=$(ls -d /home/testuser/.config/systemd/user/ns-bootstrap-update-daily.* \
+            /home/testuser/.config/systemd/user/timers.target.wants/ns-bootstrap-update-daily.timer 2>/dev/null)
           if [ -z "$left" ]; then
             echo "ok   no old per-user update timer"
           else
