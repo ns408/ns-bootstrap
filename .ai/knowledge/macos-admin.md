@@ -9,7 +9,7 @@ Shared files (repos, data, configs) live in one directory with ACL inheritance s
 ```bash
 sudo chmod -R +a \
   "group:staff allow list,add_file,search,add_subdirectory,delete_child,readattr,writeattr,readextattr,writeextattr,readsecurity,file_inherit,directory_inherit" \
-  /Users/usr0/repos
+  /Users/<daily>/repos
 ```
 
 Check admin membership: `dseditgroup -o checkmember -m "$(whoami)" admin`
