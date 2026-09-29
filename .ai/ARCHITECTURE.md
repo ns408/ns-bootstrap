@@ -192,7 +192,7 @@ AI tools stripped: Claude · Copilot · GPT · OpenAI · Anthropic · Gemini
 
 ```
 ┌─────────────────────────┐    ┌─────────────────────────┐
-│   Admin account (usr0)  │    │  Daily account (user0)  │
+│ Admin account (<admin>) │    │ Daily account (<daily>) │
 │                         │    │                         │
 │  bootstrap.sh           │    │  bootstrap.sh           │
 │  (full install)         │    │  --dotfiles-only        │
@@ -206,7 +206,7 @@ AI tools stripped: Claude · Copilot · GPT · OpenAI · Anthropic · Gemini
            └──────────┬────────────────────┘
                       │
                       ▼
-          /Users/usr0/repos/
+          /Users/<daily>/repos/
           (ACL: staff group r/w, inherited)
           ├── ns-bootstrap/
           └── ... (all repos)

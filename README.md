@@ -139,7 +139,7 @@ Shared files (repositories, data, configs) live in one directory both accounts c
 ```bash
 sudo chmod -R +a \
   "group:staff allow list,add_file,search,add_subdirectory,delete_child,readattr,writeattr,readextattr,writeextattr,readsecurity,file_inherit,directory_inherit" \
-  /Users/usr0/repos
+  /Users/<daily>/repos
 ```
 
 **Bootstrap workflow:**
