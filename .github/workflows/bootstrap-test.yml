@@ -148,7 +148,7 @@ jobs:
             echo "FAIL apt-daily-upgrade.timer not enabled"; fail=1
           fi
           left=$(ls -d /home/testuser/.config/systemd/user/ns-bootstrap-update-daily.* \
-            /home/testuser/.config/systemd/user/timers.target.wants/ns-bootstrap-update-daily.timer 2>/dev/null)
+            /home/testuser/.config/systemd/user/timers.target.wants/ns-bootstrap-update-daily.timer 2>/dev/null || true)
           if [ -z "$left" ]; then
             echo "ok   no old per-user update timer"
           else
