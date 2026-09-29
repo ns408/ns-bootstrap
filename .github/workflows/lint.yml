@@ -16,17 +16,36 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # ShellCheck from the runner image instead of ludeeus/action-shellcheck:
+      # that action was referenced by a movable tag, unmaintained since 2023,
+      # and ran inside a check every merge requires. The file selection below
+      # copies what it did: shell files by name, plus extensionless executables
+      # whose first line is a shell shebang.
       - name: Run ShellCheck on scripts
-        uses: ludeeus/action-shellcheck@2.0.0
-        with:
-          scandir: .
-          severity: warning
-          ignore_paths: dotfiles/shell
-          # recprompt.sh and apply-git-pins.zsh are zsh-only (shellcheck has no
-          # zsh mode); both are linted via zsh -n in the zsh-syntax job.
-          ignore_names: recprompt.sh apply-git-pins.zsh
+        shell: bash
         env:
           SHELLCHECK_OPTS: --shell=bash --exclude=SC1090,SC1091
+        run: |
+          shellcheck --version | sed -n 2p
+          # dotfiles/shell holds zsh startup files. recprompt.sh and
+          # apply-git-pins.zsh are zsh-only (shellcheck has no zsh mode); all
+          # are linted via zsh -n in the zsh-syntax job instead.
+          skip=(! -path './.git/*' ! -path './dotfiles/shell/*' ! -name recprompt.sh ! -name apply-git-pins.zsh)
+          files=()
+          while IFS= read -r -d '' f; do files+=("$f"); done < <(
+            find . "${skip[@]}" -type f '(' \
+              -name '*.bash' -o -name '.bashrc' -o -name 'bashrc' -o -name '.bash_aliases' \
+              -o -name '.bash_completion' -o -name '.bash_login' -o -name '.bash_logout' \
+              -o -name '.bash_profile' -o -name 'bash_profile' -o -name '*.ksh' -o -name 'suid_profile' \
+              -o -name '*.zsh' -o -name '.zlogin' -o -name 'zlogin' -o -name '.zlogout' -o -name 'zlogout' \
+              -o -name '.zprofile' -o -name 'zprofile' -o -name '.zsenv' -o -name 'zsenv' \
+              -o -name '.zshrc' -o -name 'zshrc' -o -name '*.sh' -o -path '*/.profile' \
+              -o -path '*/profile' -o -name '*.shlib' ')' -print0)
+          while IFS= read -r -d '' f; do
+            head -n1 "$f" | grep -Eqs '^#! */[^ ]*/(env *)?[abk]*sh' && files+=("$f")
+          done < <(find . "${skip[@]}" -type f ! -name '*.*' -perm /111 -print0)
+          echo "Checking ${#files[@]} files"
+          shellcheck --severity=warning "${files[@]}"
 
   zsh-syntax:
     name: Zsh Syntax Check
