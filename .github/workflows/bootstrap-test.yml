@@ -113,6 +113,35 @@ jobs:
         run: |
           su - testuser -c "test -L ~/.vimrc && test -L ~/.inputrc && test -L ~/.gitignore_global"
 
+      # Ubuntu's daily updates come from unattended-upgrades (security updates,
+      # applied as root by apt's own timer). The old per-user timer ran
+      # sudo apt with no terminal and failed every day (issue #26), so it must
+      # be gone. These are file checks: the container has no running systemd.
+      - name: Verify daily security updates
+        shell: bash
+        run: |
+          fail=0
+          dpkg -s unattended-upgrades > /dev/null 2>&1 \
+            && echo "ok   unattended-upgrades installed" \
+            || { echo "FAIL unattended-upgrades not installed"; fail=1; }
+          if grep -qs 'APT::Periodic::Unattended-Upgrade "1"' /etc/apt/apt.conf.d/20auto-upgrades; then
+            echo "ok   automatic upgrades switched on"
+          else
+            echo "FAIL automatic upgrades not switched on:"; cat /etc/apt/apt.conf.d/20auto-upgrades 2>&1; fail=1
+          fi
+          if [ -e /etc/systemd/system/timers.target.wants/apt-daily-upgrade.timer ]; then
+            echo "ok   apt-daily-upgrade.timer enabled"
+          else
+            echo "FAIL apt-daily-upgrade.timer not enabled"; fail=1
+          fi
+          left=$(ls /home/testuser/.config/systemd/user/ns-bootstrap-update-daily.* 2>/dev/null)
+          if [ -z "$left" ]; then
+            echo "ok   no old per-user update timer"
+          else
+            echo "FAIL old per-user update timer still installed: $left"; fail=1
+          fi
+          exit $fail
+
       # Every repository in packages/git-pins must sit at exactly its pinned
       # commit, never at whatever the upstream branch held on the day.
       - name: Verify pinned repositories
