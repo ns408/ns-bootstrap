@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # Ubuntu system update functions
 #
-# Two tiers:
-#   update-apt-daily    — apt packages only, background-safe
-#   update-my-system    — Full update (snap, flatpak, mise, Rust CLI tools, pinned omz and plugins), may need sudo
+# Two tiers, both run on demand:
+#   update-apt-daily:  apt packages only, needs sudo
+#   update-my-system:  full update (snap, flatpak, mise, Rust CLI tools, pinned omz and plugins), may need sudo
 #
-# Scheduled via systemd user timers (see scripts/scheduled-update-*.sh)
+# Neither is scheduled: daily security updates run on their own through
+# unattended-upgrades, which apt's timer runs as root.
 
 _update_log_dir="${HOME}/.local/log"
 
-# --- Tier 1: Background daily (needs sudo for apt) ---
+# --- Tier 1: apt packages (needs sudo for apt) ---
 update-apt-daily() {
   local log
   log="${_update_log_dir}/apt-daily-$(date +%Y%m%d).log"

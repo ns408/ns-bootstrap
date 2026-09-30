@@ -38,6 +38,8 @@ Key behaviors:
 
 ## systemd User Timers (Linux)
 
+A user timer cannot run anything that needs `sudo`: the service has no terminal, so sudo fails with "a terminal is required to read the password". This repo's Ubuntu daily job did exactly that until issue #26; privileged daily work belongs to a root-owned system timer, such as apt's own `apt-daily-upgrade.timer` for `unattended-upgrades`.
+
 ```ini
 # ~/.config/systemd/user/my-update.timer
 [Timer]

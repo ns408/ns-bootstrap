@@ -562,19 +562,20 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
             log_info "Skipping scheduled updates (non-admin user)"
         fi
     elif [[ "$OS" == "ubuntu" ]]; then
+        # Daily security updates come from Ubuntu's unattended-upgrades, which
+        # the package lists install and apt's own timer runs as root. A
+        # per-user timer cannot run apt: sudo has no terminal to ask for a
+        # password on. Full updates stay on demand: run update-my-system.
+        # Machines bootstrapped earlier carry such a timer; remove it.
         SYSTEMD_USER_DIR="${HOME}/.config/systemd/user"
-        mkdir -p "$SYSTEMD_USER_DIR"
-
-        for unit in "${PROJECT_ROOT}/scripts/systemd/"*.{service,timer}; do
-            [[ -f "$unit" ]] || continue
-            cp "$unit" "$SYSTEMD_USER_DIR/"
-            log_info "Installed systemd unit: $(basename "$unit")"
-        done
-
-        systemctl --user daemon-reload 2>/dev/null || true
-        # Daily unattended update only; the interactive tier is on-demand (run update-my-system).
-        systemctl --user enable --now ns-bootstrap-update-daily.timer 2>/dev/null || true
-        log_info "Enabled systemd daily update timer"
+        if [[ -e "${SYSTEMD_USER_DIR}/ns-bootstrap-update-daily.timer" ]]; then
+            systemctl --user disable --now ns-bootstrap-update-daily.timer 2>/dev/null || true
+            rm -f "${SYSTEMD_USER_DIR}"/ns-bootstrap-update-daily.{service,timer} \
+                  "${SYSTEMD_USER_DIR}/timers.target.wants/ns-bootstrap-update-daily.timer"
+            systemctl --user daemon-reload 2>/dev/null || true
+            log_info "Removed the old per-user daily update timer (it could not run apt)"
+        fi
+        log_info "Daily security updates: unattended-upgrades; run update-my-system for the rest"
     fi
 fi
 
