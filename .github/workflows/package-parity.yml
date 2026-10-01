@@ -33,15 +33,17 @@ jobs:
           grep -oP 'command -v \K\S+' install/ubuntu/install-ubuntu-extras.sh \
             >> /tmp/ubuntu-apt.txt
 
-          # Tools from install-modern-tools.sh: command -v checks, apt install, cargo install
+          # Rust CLI tools fetched by cargo-binstall (crate names)
+          grep -v '^\s*#' packages/binstall-tools.ubuntu | grep -v '^\s*$' \
+            >> /tmp/ubuntu-apt.txt
+
+          # Tools from install-modern-tools.sh: command -v checks, apt install
           if [ -f install/common/install-modern-tools.sh ]; then
             grep -oP 'command -v \K\S+' install/common/install-modern-tools.sh \
               >> /tmp/ubuntu-apt.txt 2>/dev/null || true
             grep -oP 'sudo apt install -y\s+\\?\s*\K\S+' install/common/install-modern-tools.sh \
               >> /tmp/ubuntu-apt.txt 2>/dev/null || true
             grep -oP '^\s+\K\S+(?=\s*\\?\s*$)' install/common/install-modern-tools.sh \
-              >> /tmp/ubuntu-apt.txt 2>/dev/null || true
-            grep -oP 'cargo install\s+\\?\s*\K\S+' install/common/install-modern-tools.sh \
               >> /tmp/ubuntu-apt.txt 2>/dev/null || true
           fi
 
