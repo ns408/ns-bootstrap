@@ -304,6 +304,7 @@ ns-bootstrap/
 │   ├── shell/{.zshrc,.zprofile}{,.ubuntu}
 │   ├── git/{.gitconfig.template,.gitconfig-work.template,.gitignore_global,hooks/}
 │   ├── vim/.vimrc
+│   ├── misc/.inputrc
 │   ├── tmux/.tmux.conf
 │   ├── starship/starship.toml
 │   ├── npm/.npmrc
