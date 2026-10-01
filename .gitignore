@@ -12,11 +12,6 @@
 *~
 .claude/
 .cursor/
-.windsurfrules
-.cursorrules
-.clinerules
-AGENTS.md
-.github/copilot-instructions.md
 
 # Homebrew
 *.lock.json

@@ -19,5 +19,5 @@ shell/          # Functions, aliases, platform-specific scripts
 packages/       # Brewfiles (macOS) and apt-packages (Ubuntu)
 install/        # Bootstrap installer and tool scripts
 secrets/        # Secrets management bootstrap
-scripts/        # Backup, migration, system maintenance
+scripts/        # Scheduled update script, launchd templates, pin bumps, git hooks
 ```
