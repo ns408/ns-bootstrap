@@ -18,11 +18,9 @@ export VISUAL="code --wait"
 export LANG="en_US.UTF-8"
 export LC_ALL="en_US.UTF-8"
 
-# Python: pip refuses any install outside a venv, --user included (override
-# with PIP_REQUIRE_VIRTUALENV=0 for the odd bootstrap case). uv never downloads
-# its own CPython, so projects run on an interpreter already on the machine —
-# it does not force mise; UV_MANAGED_PYTHON is the knob for that.
-export PIP_REQUIRE_VIRTUALENV=1
+# Python: uv never downloads an interpreter, so it uses one already installed,
+# including any it downloaded earlier (UV_NO_MANAGED_PYTHON=1 rules those out
+# too). Override once: UV_PYTHON_DOWNLOADS=automatic uv ...
 export UV_PYTHON_DOWNLOADS=never
 
 # ─── Go ───────────────────────────────────────────────────────
