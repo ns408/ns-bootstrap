@@ -6,7 +6,7 @@ Split updates into two tiers based on interactivity requirements:
 
 | Tier | What | Needs Sudo | Interactive |
 |------|------|------------|-------------|
-| Background | Package manager formulae/packages | No (macOS brew) / Yes (Ubuntu apt) | No |
+| Background | Package manager formulae (macOS brew); on Ubuntu, leave this to `unattended-upgrades` | No | No |
 | Interactive | Casks, App Store, language managers, OS updates | Possibly | Yes (tmux session) |
 
 ## launchd (macOS)

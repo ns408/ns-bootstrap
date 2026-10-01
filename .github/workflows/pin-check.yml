@@ -64,6 +64,28 @@ jobs:
             findings+=("- The vendored AWS CLI signing key \`${key}\` expires on **$(date -u -d "@${expires}" +%F)**. Once it does, Ubuntu bootstraps refuse to install the AWS CLI. Refresh it from the public key block in the AWS CLI install guide; the fingerprint must stay \`FB5DB77FD5C118B80511ADA8A6310ACC4672475C\`.")
           fi
 
+          # --- gitleaks in CI: version and SHA256 pinned in lint.yml
+          wf=.github/workflows/lint.yml
+          gl_pinned=$(sed -n 's/^ *GITLEAKS_VERSION: *//p' "$wf")
+          gl_latest=$(gh release view --repo gitleaks/gitleaks --json tagName -q .tagName | sed 's/^v//')
+          if [ -z "$gl_pinned" ] || [ -z "$gl_latest" ]; then
+            findings+=("- Could not read the gitleaks pin in \`${wf}\` (pinned: \`${gl_pinned:-?}\`, latest: \`${gl_latest:-?}\`). The check itself may need fixing.")
+          elif [ "$gl_pinned" != "$gl_latest" ]; then
+            gl_sha=$(curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${gl_latest}/gitleaks_${gl_latest}_checksums.txt" \
+              | awk -v f="gitleaks_${gl_latest}_linux_x64.tar.gz" '$2 == f {print $1}')
+            findings+=("- CI's gitleaks is pinned at **${gl_pinned}**; **${gl_latest}** is available. In \`${wf}\`, set \`GITLEAKS_VERSION: ${gl_latest}\` and \`GITLEAKS_SHA256: ${gl_sha:-unknown}\` (from the release's published checksums).")
+          fi
+
+          # --- Helm KEYS: vendored, so a new or rotated maintainer key must be noticed
+          key=install/keys/helm-KEYS.asc
+          upstream=$(curl -fsSL https://raw.githubusercontent.com/helm/helm/main/KEYS | sha256sum | cut -d' ' -f1)
+          vendored=$(sha256sum "$key" | cut -d' ' -f1)
+          if [ -z "$upstream" ]; then
+            findings+=("- Could not fetch Helm's KEYS file to compare with \`${key}\`. The check itself may need fixing.")
+          elif [ "$upstream" != "$vendored" ]; then
+            findings+=("- Helm's published [KEYS file](https://github.com/helm/helm/blob/main/KEYS) no longer matches the vendored \`${key}\`. Review what changed upstream; if it is a genuine new maintainer key, replace the file and update \`HELM_KEYS_SHA256\` in \`install/ubuntu/install-ubuntu-extras.sh\`. Until then, a Helm release signed with the new key is refused.")
+          fi
+
           existing=$(gh issue list --state open --search "\"${ISSUE_TITLE}\" in:title" --json number -q '.[0].number')
 
           if [ ${#findings[@]} -eq 0 ]; then
