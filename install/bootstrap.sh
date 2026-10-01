@@ -110,7 +110,7 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         echo "  Modern CLI tools via install-modern-tools.sh"
         echo ""
         echo "Would symlink:"
-        for f in .zshrc .zprofile .vimrc .inputrc .gitignore_global .tmux.conf .config/starship.toml .npmrc .config/atuin/config.toml; do
+        for f in .zshrc .zprofile .vimrc .inputrc .gitignore_global .tmux.conf .config/starship.toml .npmrc .config/atuin/config.toml .config/pip/pip.conf; do
             src="${PROJECT_ROOT}/dotfiles"
             echo "  ~/${f}"
         done
@@ -293,7 +293,7 @@ else
         echo "OS: ${OS}"
         echo ""
         echo "Would symlink:"
-        for f in .zshrc .zprofile .vimrc .inputrc .gitignore_global .tmux.conf .config/starship.toml .npmrc .config/atuin/config.toml; do
+        for f in .zshrc .zprofile .vimrc .inputrc .gitignore_global .tmux.conf .config/starship.toml .npmrc .config/atuin/config.toml .config/pip/pip.conf; do
             echo "  ~/${f}"
         done
         echo ""
@@ -447,6 +447,26 @@ fi
 if [[ -f "${PROJECT_ROOT}/dotfiles/atuin/config.toml" ]]; then
     mkdir -p "${HOME}/.config/atuin"
     symlink_file "${PROJECT_ROOT}/dotfiles/atuin/config.toml" "${HOME}/.config/atuin/config.toml"
+fi
+
+# pip: refuse installs outside a virtualenv for every process that runs pip,
+# not only login shells. A pip.conf of the user's own (an index, a proxy) is
+# kept: replacing it would quietly change where pip installs from.
+if [[ -f "${PROJECT_ROOT}/dotfiles/pip/pip.conf" ]]; then
+    if [[ "$OS" == "macos" ]]; then
+        PIP_CONF_DIR="${HOME}/.config/pip"
+    else
+        PIP_CONF_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/pip"
+    fi
+    if [[ -e "${PIP_CONF_DIR}/pip.conf" && ! -L "${PIP_CONF_DIR}/pip.conf" ]]; then
+        log_warn "Keeping your ${PIP_CONF_DIR}/pip.conf; add 'require-virtualenv = true' under [global] to refuse installs outside a virtualenv"
+    else
+        mkdir -p "$PIP_CONF_DIR"
+        symlink_file "${PROJECT_ROOT}/dotfiles/pip/pip.conf" "${PIP_CONF_DIR}/pip.conf"
+    fi
+    if [[ "$OS" == "macos" && -d "${HOME}/Library/Application Support/pip" ]]; then
+        log_warn "pip reads ~/Library/Application Support/pip/pip.conf on this Mac, so ${PIP_CONF_DIR}/pip.conf has no effect"
+    fi
 fi
 
 # Relinking stops here: everything above re-derives from PROJECT_ROOT (symlinks,

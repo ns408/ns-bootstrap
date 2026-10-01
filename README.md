@@ -14,6 +14,7 @@ Cross-platform system bootstrap for macOS and Ubuntu 24.04, both using zsh.
 - [Shell](#shell)
 - [macOS Initial Setup](#macos-initial-setup)
 - [Platform Compatibility](#platform-compatibility)
+- [Breaking Changes](#breaking-changes)
 - [License](#license)
 
 ## Quick Start
@@ -118,6 +119,8 @@ Both macOS and Ubuntu use zsh with the same stack:
 - **Prompt:** Starship (Rust-based, cross-shell, context-aware)
 - **History:** Atuin (SQLite-backed, fuzzy search, encrypted sync)
 - **Enhancements:** zsh-autosuggestions, zsh-syntax-highlighting, fzf-tab
+
+**Python:** pip refuses to install outside a virtualenv (`dotfiles/pip/pip.conf`, linked into `~/.config/pip/`); override a single command with `PIP_REQUIRE_VIRTUALENV=0`. An existing `pip.conf` of your own is kept, not replaced. uv is set never to download a Python of its own (`UV_PYTHON_DOWNLOADS=never`); override with `UV_PYTHON_DOWNLOADS=automatic`.
 
 Ubuntu specifics: zsh is installed via apt and set as the default shell via `usermod`.
 Dotfiles used: `dotfiles/shell/.zshrc.ubuntu` and `dotfiles/shell/.zprofile.ubuntu`
@@ -252,6 +255,10 @@ SUBNET=10.0.0.0/24 bash install/ubuntu/install-remote-desktop.sh  # override sub
 | Ubuntu 24.04 LTS | ARM64 | Tested (SSH) |
 | macOS (Intel) | x86_64 | Expected to work, untested |
 | Ubuntu 24.04 LTS | x86_64 | Expected to work, untested |
+
+## Breaking Changes
+
+This is a personal setup, public for reference, with no compatibility promise: if you depend on it, fork it or pin a commit. Changes that alter an already-bootstrapped machine migrate it automatically when bootstrap runs again, never overwrite configuration you own, and are marked **Breaking** in their pull request.
 
 ## License
 
