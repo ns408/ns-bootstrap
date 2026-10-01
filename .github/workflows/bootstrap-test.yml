@@ -53,9 +53,15 @@ jobs:
             ln -s ../ns-bootstrap-update-daily.timer "$d/timers.target.wants/ns-bootstrap-update-daily.timer"
           '
 
+      # su - clears the environment, so the token has to be let through by
+      # name. Without it, cargo-binstall queries api.github.com anonymously from
+      # a shared runner address and is rate-limited (403), which failed every
+      # Rust tool install on 2026-09-29 and 2026-10-01.
       - name: Run bootstrap
         run: |
-          su - testuser -c "cd $GITHUB_WORKSPACE && ./install/bootstrap.sh --profile ${{ matrix.profile }} --yes"
+          su - testuser -w GITHUB_TOKEN -c '[ -n "$GITHUB_TOKEN" ]' \
+            || { echo "GITHUB_TOKEN did not reach testuser"; exit 1; }
+          su - testuser -w GITHUB_TOKEN -c "cd $GITHUB_WORKSPACE && ./install/bootstrap.sh --profile ${{ matrix.profile }} --yes"
         env:
           NONINTERACTIVE: '1'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
