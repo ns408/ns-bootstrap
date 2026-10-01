@@ -307,6 +307,7 @@ ns-bootstrap/
 │   ├── tmux/.tmux.conf
 │   ├── starship/starship.toml
 │   ├── npm/.npmrc
+│   ├── pip/pip.conf              # refuses pip installs outside a virtualenv
 │   └── atuin/config.toml
 ├── shell/
 │   ├── loader.sh
