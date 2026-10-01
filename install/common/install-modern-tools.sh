@@ -111,14 +111,14 @@ else
     # deliberate commit rather than whatever "latest" resolves to on the day.
     # (cargo-bins does publish sigstore attestations, but verifying those needs
     # the gh CLI, which Ubuntu installs later than this script runs.)
-    BINSTALL_VERSION="1.23.0"
+    BINSTALL_VERSION="1.24.0"
     ARCH=$(dpkg --print-architecture)
     if [[ "$ARCH" == "arm64" ]]; then
         BINSTALL_TARGET="aarch64-unknown-linux-musl"
-        BINSTALL_SHA256="ba9b7bf426c7b7375825cd3fa367c3f8a632ca7c6c546fdcb738114b167f4103"
+        BINSTALL_SHA256="c2c44aba65d402ac43ee821387c49246bc574bde65d3d7f0f7a9e666c5a69f7f"
     else
         BINSTALL_TARGET="x86_64-unknown-linux-musl"
-        BINSTALL_SHA256="64bf954c68bb558431deeabecaec7687edd5541c2189ee263bb8bc18bc4fdf55"
+        BINSTALL_SHA256="7ffe1832c4bc3148d00f02d51c1d96c9cccdec76a0fa20e6e5692201d78bcc0b"
     fi
 
     if ! command -v cargo-binstall &> /dev/null; then
