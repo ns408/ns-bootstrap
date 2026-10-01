@@ -124,7 +124,23 @@ jobs:
 
       - name: Verify dotfiles symlinked
         run: |
-          su - testuser -c "test -L ~/.vimrc && test -L ~/.inputrc && test -L ~/.gitignore_global"
+          su - testuser -c "test -L ~/.vimrc && test -L ~/.inputrc && test -L ~/.gitignore_global && test -L ~/.config/pip/pip.conf"
+
+      # pip must refuse an install outside a virtualenv for any process, not
+      # just login shells, and the documented override must let it through.
+      # The minimal profile installs no pip, so there is nothing to check.
+      - name: Verify pip refuses installs outside a virtualenv
+        shell: bash
+        run: |
+          su - testuser -c 'bash -s' <<'EOF'
+          command -v pip3 > /dev/null || { echo "no pip3 in this profile; skipping"; exit 0; }
+          env -u PIP_REQUIRE_VIRTUALENV pip3 install --dry-run six > /tmp/pip.log 2>&1; rc=$?
+          cat /tmp/pip.log
+          [ "$rc" -eq 3 ] || { echo "expected exit 3 (virtualenv required), got $rc"; exit 1; }
+          PIP_REQUIRE_VIRTUALENV=0 pip3 install --dry-run six 2>&1 | grep -q "virtualenv (required)" \
+            && { echo "override did not let the install through"; exit 1; }
+          echo "ok: refused outside a virtualenv; override works"
+          EOF
 
       # Ubuntu's daily updates come from unattended-upgrades (security updates,
       # applied as root by apt's own timer). The old per-user timer ran
