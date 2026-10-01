@@ -48,7 +48,7 @@ flowchart TD
     G --> H{Ubuntu?}
     H -->|Yes| I[install-ubuntu-extras.sh\nAWS CLI v2, Docker Engine]
     H -->|No| J
-    I --> J[6. Symlink dotfiles\n9 files → ~/.zshrc etc.]
+    I --> J[6. Symlink dotfiles\n~/.zshrc, ~/.vimrc, ... ]
     J --> R{--relink?}
     R -->|Yes| S([Done\npaths re-pointed])
     R -->|No| L
@@ -56,7 +56,7 @@ flowchart TD
     L[7. oh-my-zsh + plugins\nper user, not shared]
     L --> M[8. Global git hooks\ncopy dotfiles/git/hooks →\n~/.config/git/hooks]
     M --> N[9. bootstrap-secrets.sh\nsubstitute .gitconfig templates\n1Password or pass]
-    N --> O[10. Scheduled updates\nlaunchd agents / systemd timers]
+    N --> O[10. Scheduled updates\nmacOS: launchd daily job\nUbuntu: unattended-upgrades]
     O --> P[11. Verify\ncheck commands exist]
     P --> Q([Done])
 ```
@@ -228,7 +228,8 @@ ON-DEMAND (run yourself) ─ update-my-system ───────────�
           ├── brew update + upgrade (formulae)
           ├── brew upgrade --cask (GUI apps)
           ├── mas upgrade        (App Store — needs signed-in GUI session)
-          ├── mise / omz upgrade (per-user tools)
+          ├── mise upgrade (per-user tools)
+          ├── oh-my-zsh and plugins to their pinned commits
           ├── Microsoft AutoUpdate
           └── softwareupdate --list (install stays manual: update-macos-install)
 
@@ -291,13 +292,17 @@ ns-bootstrap/
 │   ├── bootstrap.sh              # Main entry point
 │   ├── lib/common.sh             # Logging, OS detection
 │   ├── common/install-modern-tools.sh
-│   └── ubuntu/install-ubuntu-extras.sh
+│   ├── common/sync-git-pins.sh   # oh-my-zsh and plugins to their pinned commits
+│   ├── keys/*.asc                # vendored signing keys (AWS CLI, Helm)
+│   └── ubuntu/install-{ubuntu-extras,remote-desktop}.sh
 ├── packages/
 │   ├── Brewfile.{minimal,developer,cloud-engineer}
-│   └── apt-packages.{minimal,developer,cloud-engineer}
+│   ├── apt-packages.{minimal,developer,cloud-engineer}
+│   ├── binstall-tools.ubuntu     # Rust CLI tools fetched by cargo-binstall
+│   └── git-pins                  # pinned commits: oh-my-zsh, zsh and vim plugins
 ├── dotfiles/
-│   ├── shell/{.zshrc,.zprofile}
-│   ├── git/{.gitconfig.template,.gitignore_global,hooks/}
+│   ├── shell/{.zshrc,.zprofile}{,.ubuntu}
+│   ├── git/{.gitconfig.template,.gitconfig-work.template,.gitignore_global,hooks/}
 │   ├── vim/.vimrc
 │   ├── tmux/.tmux.conf
 │   ├── starship/starship.toml
@@ -305,21 +310,25 @@ ns-bootstrap/
 │   └── atuin/config.toml
 ├── shell/
 │   ├── loader.sh
+│   ├── apply-git-pins.zsh        # applies pin changes at the next shell start
 │   ├── functions/{aws,secrets,system,docker,network,ssh,...}.sh
 │   ├── aliases/{general,modern-tools}.sh
 │   └── platform/{macos,ubuntu}/
 ├── secrets/
-│   └── bootstrap-secrets.sh
+│   ├── bootstrap-secrets.sh
+│   └── .env.template
 ├── scripts/
-│   ├── scheduled-update-daily.sh
+│   ├── scheduled-update-daily.sh         # macOS daily job
+│   ├── bump-git-pins.sh                  # proposes pin moves (14-day cooldown)
 │   ├── launchd/*.plist.template          # daily LaunchAgent (default)
-│   ├── launchd-daemon/*.daemon.plist.template  # opt-in LaunchDaemon (multi-account)
-│   └── hooks/commit-msg
-├── tests/
-│   ├── common.bats
-│   └── symlink.bats
+│   └── launchd-daemon/*.daemon.plist.template  # opt-in LaunchDaemon (multi-account)
+├── tests/*.bats                  # bats unit tests
+├── .gitleaksignore               # reviewed gitleaks false positives in history
 └── .github/workflows/
-    ├── lint.yml
-    ├── bootstrap-test.yml
-    └── brew-check.yml
+    ├── lint.yml                  # ShellCheck, zsh syntax, bats, secret scan
+    ├── bootstrap-test.yml        # full bootstrap on Ubuntu, macOS smoke test
+    ├── brew-check.yml            # Brewfile packages still exist
+    ├── package-parity.yml        # macOS and Ubuntu tool lists match
+    ├── pin-check.yml             # pinned versions and vendored keys
+    └── git-pin-bump.yml          # monthly pin bump proposal
 ```

@@ -46,7 +46,7 @@ flowchart TD
     E --> F[symlink dotfiles<br/>.zshrc .vimrc .gitconfig ...]
     F --> G[install git hooks<br/>secret scan · AI trailer strip]
     G --> H[init secrets<br/>1Password / pass]
-    H --> I[schedule updates<br/>launchd / systemd]
+    H --> I[schedule updates<br/>launchd on macOS]
 
     F -.->|on shell open| J[loader.sh]
     J --> K[functions/ aliases/ platform/]
