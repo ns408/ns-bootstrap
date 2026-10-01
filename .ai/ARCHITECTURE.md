@@ -312,7 +312,7 @@ ns-bootstrap/
 ├── secrets/
 │   └── bootstrap-secrets.sh
 ├── scripts/
-│   ├── scheduled-update-{daily,interactive}.sh
+│   ├── scheduled-update-daily.sh
 │   ├── launchd/*.plist.template          # daily LaunchAgent (default)
 │   ├── launchd-daemon/*.daemon.plist.template  # opt-in LaunchDaemon (multi-account)
 │   └── hooks/commit-msg
