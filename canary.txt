@@ -1,0 +1,2 @@
+Fake credential to prove the Secret Scan job fails. Never merged.
+api_key = "Zx9Qw2Lp7Vt4Rk8Mn3Bj6Hs1Yc5Df0Ga"
