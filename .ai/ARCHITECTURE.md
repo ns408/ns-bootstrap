@@ -173,11 +173,10 @@ Every commit on every repo
 ├── prepare-commit-msg        ← strip AI trailers (early)
 ├── commit-msg                ← strip AI trailers (final)
 └── lib/strip-ai-trailers.sh  ← shared helper sourced by the message hooks
-        │
-        │  (if project sets core.hooksPath)
-        ▼
-scripts/hooks/commit-msg      ← project-level strip
-└── chains back ──────────────▶ ~/.config/git/hooks/commit-msg
+
+A repository that sets its own core.hooksPath replaces these hooks entirely
+(git uses one hooks folder), so it loses the gitleaks scans. Keep repos on the
+global folder; CI's gitleaks job is the backstop either way.
 
 gitleaks-missing policy: pre-commit warns (fail-open), pre-push blocks (fail-closed).
 
