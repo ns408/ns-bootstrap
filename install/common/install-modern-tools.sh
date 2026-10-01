@@ -219,7 +219,7 @@ PIN
     # Installs to ~/.local/bin/mise, where mise.run put it, so `mise
     # self-update` in update-my-system carries on working unchanged.
     install_mise_verified() {
-        local key_fpr="24853EC9F655CE80B48E6C3A8B81C9D17413A06D"
+        local key_fpr="24853EC9F655CE80B48E6C3A8B81C9D17413A06D"  # gitleaks:allow (public key fingerprint)
         local version arch asset work fpr status
         version=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
             https://github.com/jdx/mise/releases/latest | sed 's#.*/tag/v##')

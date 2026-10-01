@@ -31,7 +31,7 @@ if ! command -v aws &>/dev/null || [[ "$(aws --version 2>&1)" != *"aws-cli/2"* ]
     # publishes it only inside a documentation page, so there is no stable URL
     # worth pinning. The fingerprint is checked anyway, so an edited key file
     # cannot slip through unnoticed.
-    AWS_KEY_FINGERPRINT="FB5DB77FD5C118B80511ADA8A6310ACC4672475C"
+    AWS_KEY_FINGERPRINT="FB5DB77FD5C118B80511ADA8A6310ACC4672475C"  # gitleaks:allow (public key fingerprint)
     command -v gpg &>/dev/null || sudo apt install -y gnupg
     AWS_KEY_FPR=$(gpg --show-keys --with-colons "${KEYS_DIR}/aws-cli.asc" | awk -F: '/^fpr:/ {print $10; exit}')
     if [[ "$AWS_KEY_FPR" != "$AWS_KEY_FINGERPRINT" ]]; then

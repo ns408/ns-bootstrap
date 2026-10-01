@@ -1,0 +1,6 @@
+# Reviewed false positives in past commits; each line pins one finding to its
+# commit, file, rule and line, so it cannot hide anything new. 2026-10-01:
+# two public GPG key fingerprints and a comment in a test.
+f330bd5813f761458c1f5f81b985d3a986fdfda2:install/common/install-modern-tools.sh:generic-api-key:222
+eb108739fc48a1c4941ba0369c79ae2383744abd:install/ubuntu/install-ubuntu-extras.sh:generic-api-key:34
+5ed9d55356374fb8da47abff0e67a2973eb85a3e:tests/recprompt.bats:generic-api-key:4
