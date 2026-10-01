@@ -75,3 +75,29 @@ jobs:
 
       - name: Run tests
         run: bats tests/
+
+  # Backstop for the local gitleaks hooks, which only cover commits made on a
+  # machine that has them: not --no-verify, other machines, or edits made on
+  # GitHub. Scans the whole history (small, and immune to range edge cases);
+  # reviewed false positives live in .gitleaksignore. gitleaks is a pinned,
+  # checksum-verified release binary rather than a third-party action.
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Scan with gitleaks
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -o "/tmp/${tarball}" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${tarball}"
+          echo "${GITLEAKS_SHA256}  /tmp/${tarball}" | sha256sum -c -
+          tar -xzf "/tmp/${tarball}" -C /tmp gitleaks
+          /tmp/gitleaks version
+          /tmp/gitleaks git --no-banner --redact --verbose .

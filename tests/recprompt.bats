@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Tests for shell/functions/recprompt.sh
 # bats runs under bash; the zsh-specific invariants are checked by shelling out to
-# `zsh -c`. Behavioural bits (HISTSIZE, bindkey, Atuin/Starship pause) need an
+# `zsh -c`. Behavioural bits (HISTSIZE, bindkey, Atuin/Starship pause) need an  gitleaks:allow
 # interactive shell and are verified manually, not here.
 
 RECPROMPT="${BATS_TEST_DIRNAME}/../shell/functions/recprompt.sh"
