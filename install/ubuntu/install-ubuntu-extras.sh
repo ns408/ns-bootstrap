@@ -256,12 +256,50 @@ else
     log_info "kubectl already installed: $(kubectl version --client)"
 fi
 
-# --- Helm (official install script) ---
+# --- Helm (release tarball, signature verified) ---
 log_info "Checking Helm..."
 if ! command -v helm &>/dev/null; then
     log_info "Installing Helm..."
-    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-4 | bash
-    log_info "Helm installed: $(helm version --short)"
+    # The release tarball, checked against Helm's signature, rather than the
+    # get-helm script piped into bash from Helm's main branch. Releases are
+    # signed by different maintainers, so the whole KEYS file Helm publishes
+    # is vendored at install/keys/helm-KEYS.asc and pinned by checksum here:
+    # a changed key file cannot pass unnoticed. GOODSIG from the status
+    # output is required, as gpg's exit code accepts expired keys.
+    HELM_KEYS_SHA256="5de12e8dca75f8a72d1ad4e9a05a6f9de0356ee520bf0bd703bd2d37a536e85b"  # gitleaks:allow (public checksum)
+    HELM_VERSION=$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
+        https://github.com/helm/helm/releases/latest | sed 's#.*/tag/##')
+    if [[ -z "$HELM_VERSION" ]]; then
+        log_warn "Could not resolve the latest Helm release — refusing to guess"
+        exit 1
+    fi
+    HELM_ARCH="linux-$(dpkg --print-architecture)"
+    HELM_TARBALL="helm-${HELM_VERSION}-${HELM_ARCH}.tar.gz"
+    curl -fsSL "https://get.helm.sh/${HELM_TARBALL}" -o "/tmp/${HELM_TARBALL}"
+    curl -fsSL "https://github.com/helm/helm/releases/download/${HELM_VERSION}/${HELM_TARBALL}.asc" \
+        -o "/tmp/${HELM_TARBALL}.asc"
+
+    command -v gpg &>/dev/null || sudo apt install -y gnupg
+    if ! echo "${HELM_KEYS_SHA256}  ${KEYS_DIR}/helm-KEYS.asc" | sha256sum -c - > /dev/null; then
+        log_warn "install/keys/helm-KEYS.asc does not match its pinned checksum — refusing to install"
+        exit 1
+    fi
+    HELM_GNUPGHOME=$(mktemp -d)
+    GNUPGHOME="$HELM_GNUPGHOME" gpg --quiet --import "${KEYS_DIR}/helm-KEYS.asc" 2>/dev/null
+    HELM_SIG_STATUS=$(GNUPGHOME="$HELM_GNUPGHOME" gpg --status-fd 1 \
+        --verify "/tmp/${HELM_TARBALL}.asc" "/tmp/${HELM_TARBALL}" 2>/dev/null || true)
+    rm -rf "$HELM_GNUPGHOME"
+    if ! grep -q '^\[GNUPG:\] GOODSIG' <<< "$HELM_SIG_STATUS"; then
+        rm -f "/tmp/${HELM_TARBALL}" "/tmp/${HELM_TARBALL}.asc"
+        log_warn "Helm ${HELM_VERSION} signature did not verify — refusing to install"
+        log_warn "If a new maintainer signed it, refresh install/keys/helm-KEYS.asc from Helm's KEYS file, and its checksum here"
+        exit 1
+    fi
+
+    tar -xzf "/tmp/${HELM_TARBALL}" -C /tmp "${HELM_ARCH}/helm"
+    sudo install -m 755 "/tmp/${HELM_ARCH}/helm" /usr/local/bin/helm
+    rm -rf "/tmp/${HELM_TARBALL}" "/tmp/${HELM_TARBALL}.asc" "/tmp/${HELM_ARCH}"
+    log_info "Helm installed (signature verified): $(helm version --short)"
 else
     log_info "Helm already installed: $(helm version --short)"
 fi
