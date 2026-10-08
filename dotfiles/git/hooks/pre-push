@@ -4,7 +4,8 @@
 #   2. in a clone opted in with `git config publish-boundary.gate PATH`, the
 #      publish gate holds documents that should stay private (blocks);
 #   3. OSV-Scanner and Trivy report known vulnerabilities and misconfigurations
-#      in the tree being pushed (report only, during the trial).
+#      in the tree being pushed, in pinned containers where Docker is running
+#      (report only, during the trial).
 #
 # Installed by ns-bootstrap — applies to all repositories.
 # To bypass for a single push (only if a false positive): git push --no-verify
@@ -75,8 +76,58 @@ fi
 # push from a repository with one old dependency. During the trial they print
 # what they find and never refuse a push. Each scans the tree being pushed,
 # not the working tree, and says in one line when it has nothing to read.
+#
+# Where Docker is running they run in containers from these pinned images. The
+# scanner then sees only the pushed tree, read-only, with no network, no
+# capabilities and the pusher's own user, and changes version only when a pin
+# is bumped (Pin Check proposes bumps once a release is 14 days old). A
+# background job pulls the images and refreshes the databases, at most daily
+# per repository and after the scan, so a push never waits for a download.
+# Without Docker, an installed scanner runs natively (the Ubuntu bootstrap
+# installs pinned binaries); otherwise the scan is skipped.
+TRIVY_IMAGE="ghcr.io/aquasecurity/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969"
+OSV_IMAGE="ghcr.io/google/osv-scanner:v2.6.0@sha256:afd838850ac1a0fcc15ff4a041dc9ba11123c3f0d2666217a5f0fcf9222b55fa"
 lockfiles='(^|/)(package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lock|uv\.lock|poetry\.lock|pdm\.lock|Pipfile\.lock|requirements[^/]*\.txt|Cargo\.lock|go\.mod|Gemfile\.lock|composer\.lock|mix\.lock|pubspec\.lock|gradle\.lockfile|packages\.lock\.json)$'
 trivy_targets='(^|/)(Dockerfile[^/]*|Containerfile)$|(^|/)(_site|dist)/|\.tf$'
+scan_cache="${XDG_CACHE_HOME:-$HOME/.cache}/ns-bootstrap/scanners"
+stamp="$scan_cache/stamps/$(printf '%s' "$root" | git hash-object --stdin)"
+user="$(id -u):$(id -g)"
+isolated=(--rm --pull never --network none --read-only --tmpfs /tmp --cap-drop ALL
+          --security-opt no-new-privileges --user "$user" -e HOME=/tmp)
+
+docker_up() {
+    command -v docker >/dev/null 2>&1 && docker version --format '{{.Server.Version}}' >/dev/null 2>&1
+}
+
+refreshed_on() {  # the date a file was last written, or "never"
+    if [ -e "$1" ]; then date -r "$1" +%F; else echo never; fi
+}
+
+# Pull the images and refresh both databases, detached from the push. OSV
+# fetches the ecosystems it finds in a tree, so the job keeps its own copy.
+refresh_in_background() {  # $1: the pushed commit
+    local lock="$scan_cache/refresh.lock" seed
+    mkdir -p "$scan_cache/trivy" "$scan_cache/osv" "$scan_cache/stamps"
+    [ -n "$(find "$lock" -maxdepth 0 -mmin +120 2>/dev/null)" ] && rmdir "$lock" 2>/dev/null
+    mkdir "$lock" 2>/dev/null || return 0          # one refresh at a time
+    seed=$(mktemp -d)
+    git archive "$1" | tar -x -C "$seed"
+    (
+        online=(--rm --cap-drop ALL --security-opt no-new-privileges --user "$user" -e HOME=/tmp)
+        if docker pull -q "$TRIVY_IMAGE" && docker pull -q "$OSV_IMAGE" \
+            && docker run "${online[@]}" -v "$scan_cache/trivy:/cache" "$TRIVY_IMAGE" \
+                --cache-dir /cache fs --scanners vuln,misconfig --disable-telemetry \
+                --skip-version-check --quiet /tmp; then
+            docker run "${online[@]}" -v "$scan_cache/osv:/cache" \
+                -e OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=/cache -v "$seed:/src:ro" -w /src \
+                "$OSV_IMAGE" scan source -r --offline --download-offline-databases \
+                --verbosity error .
+            case $? in 0|1|128) touch "$stamp" ;; esac
+        fi
+        rm -rf "$seed"
+        rmdir "$lock"
+    ) </dev/null >"$scan_cache/refresh.log" 2>&1 &
+}
 
 scanned=""
 while read -r _ local_sha _ _; do
@@ -96,41 +147,91 @@ while read -r _ local_sha _ _; do
     tree=$(mktemp -d)
     git archive "$local_sha" | tar -x -C "$tree"
 
+    docker=false contained=false failed=false
+    if docker_up; then
+        docker=true
+        docker image inspect "$TRIVY_IMAGE" "$OSV_IMAGE" >/dev/null 2>&1 && contained=true
+    fi
+
     if $want_osv; then
-        if command -v osv-scanner >/dev/null 2>&1; then
+        if $contained; then
+            osv_version=${OSV_IMAGE%%@*}
+            echo "osv-scanner ${osv_version##*:v} (pinned image, database refreshed $(refreshed_on "$stamp")): scanning ${local_sha:0:12}" >&2
+            # Offline against the local database, so the dependency list never
+            # leaves the machine.
+            docker run "${isolated[@]}" -v "$scan_cache/osv:/cache:ro" \
+                -e OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=/cache -v "$tree:/src:ro" -w /src \
+                "$OSV_IMAGE" scan source -r --offline --verbosity error . > "$tree.osv" 2>&1
+            osv_rc=$?
+            cat "$tree.osv" >&2
+            # An ecosystem with no local database is skipped with only an error
+            # line, while the exit status reflects the ecosystems that were read.
+            if grep -q "no offline version of the OSV database" "$tree.osv"; then
+                echo "osv-scanner: some ecosystems have no database yet, so their packages were not checked" >&2
+                failed=true
+            fi
+            rm -f "$tree.osv"
+        elif command -v osv-scanner >/dev/null 2>&1; then
             echo "osv-scanner $(osv-scanner --version | awk '/version/ {print $NF; exit}'): scanning ${local_sha:0:12}" >&2
             # Offline: download OSV's database and match locally, so the
             # dependency list never leaves the machine. Run from inside the
             # tree so findings name repository paths, not the temporary one.
             (cd "$tree" && osv-scanner scan source -r --offline --download-offline-databases \
                 --verbosity error .) >&2
-            case $? in
-                0) echo "osv-scanner: no known vulnerabilities" >&2 ;;
-                1) echo "osv-scanner: vulnerabilities above (reported, not blocking)" >&2 ;;
-                128) echo "osv-scanner: no packages found in the lockfile" >&2 ;;
-                *) echo "osv-scanner: scan failed (not blocking)" >&2 ;;
-            esac
+            osv_rc=$?
         else
-            echo "osv-scanner: skipped, not installed" >&2
+            osv_rc=skip
         fi
+        case $osv_rc in
+            0) echo "osv-scanner: no known vulnerabilities" >&2 ;;
+            1) echo "osv-scanner: vulnerabilities above (reported, not blocking)" >&2 ;;
+            128) echo "osv-scanner: no packages found in the lockfile" >&2 ;;
+            skip) if $docker; then
+                      echo "osv-scanner: skipped, its image is being pulled in the background" >&2
+                  else
+                      echo "osv-scanner: skipped, neither Docker nor osv-scanner is available" >&2
+                  fi ;;
+            *) echo "osv-scanner: scan failed (not blocking)" >&2; failed=true ;;
+        esac
     fi
 
     if $want_trivy; then
-        if command -v trivy >/dev/null 2>&1; then
+        if $contained; then
+            trivy_version=${TRIVY_IMAGE%%@*}
+            trivy_db=$(sed -n 's/.*"UpdatedAt":"\([0-9-]\{10\}\).*/\1/p' "$scan_cache/trivy/db/metadata.json" 2>/dev/null)
+            echo "trivy ${trivy_version##*:} (pinned image, database ${trivy_db:-not yet downloaded}): scanning ${local_sha:0:12}" >&2
+            docker run "${isolated[@]}" -v "$scan_cache/trivy:/cache:ro" -v "$tree:/src:ro" \
+                "$TRIVY_IMAGE" --cache-dir /cache fs --scanners vuln,misconfig \
+                --skip-db-update --skip-check-update --exit-code 2 --quiet \
+                --disable-telemetry --skip-version-check /src >&2
+            trivy_rc=$?
+        elif command -v trivy >/dev/null 2>&1; then
             echo "trivy $(trivy --version | awk '/^Version/ {print $2; exit}'): scanning ${local_sha:0:12} (its first run downloads a database)" >&2
             trivy fs --scanners vuln,misconfig --exit-code 2 --quiet \
                 --disable-telemetry --skip-version-check "$tree" >&2
-            case $? in
-                0) echo "trivy: no known vulnerabilities or misconfigurations" >&2 ;;
-                2) echo "trivy: findings above (reported, not blocking)" >&2 ;;
-                *) echo "trivy: scan failed (not blocking)" >&2 ;;
-            esac
+            trivy_rc=$?
         else
-            echo "trivy: skipped, not installed" >&2
+            trivy_rc=skip
         fi
+        case $trivy_rc in
+            0) echo "trivy: no known vulnerabilities or misconfigurations" >&2 ;;
+            2) echo "trivy: findings above (reported, not blocking)" >&2 ;;
+            skip) if $docker; then
+                      echo "trivy: skipped, its image is being pulled in the background" >&2
+                  else
+                      echo "trivy: skipped, neither Docker nor trivy is available" >&2
+                  fi ;;
+            *) echo "trivy: scan failed (not blocking)" >&2; failed=true ;;
+        esac
     fi
 
     rm -rf "$tree"
+    # After the scans, so a refresh never rewrites a database mid-read. A failed
+    # scan also refreshes: a new ecosystem has no database until one runs.
+    if $docker && { ! $contained || $failed || [ -z "$(find "$stamp" -mmin -1440 2>/dev/null)" ]; }; then
+        refresh_in_background "$local_sha"
+        echo "scanners: refreshing images and databases in the background" >&2
+    fi
 done <<< "$lines"
 
 exit $status

@@ -76,6 +76,10 @@ jobs:
             findings+=("- CI's gitleaks is pinned at **${gl_pinned}**; **${gl_latest}** is available. In \`${wf}\`, set \`GITLEAKS_VERSION: ${gl_latest}\` and \`GITLEAKS_SHA256: ${gl_sha:-unknown}\` (from the release's published checksums).")
           fi
 
+          # --- Push scanners: Ubuntu binaries and the push hook's container images,
+          # proposed once a release is 14 days old and checked before proposing
+          while IFS= read -r -d '' f; do findings+=("$f"); done < <(scripts/check-scanner-pins.sh)
+
           # --- Helm KEYS: vendored, so a new or rotated maintainer key must be noticed
           key=install/keys/helm-KEYS.asc
           upstream=$(curl -fsSL https://raw.githubusercontent.com/helm/helm/main/KEYS | sha256sum | cut -d' ' -f1)
