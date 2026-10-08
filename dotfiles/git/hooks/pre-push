@@ -16,7 +16,19 @@ fi
 # git's all-zeros SHA sentinel, meaning "no commit on this side" (deletion / new branch).
 zero="0000000000000000000000000000000000000000"
 status=0
+
 # git feeds pre-push one line per ref on stdin: <local_ref> <local_sha> <remote_ref> <remote_sha>
+# A remote SHA this clone has never fetched (someone pushed since) cannot bound
+# a range: gitleaks then scans nothing and exits 0. Treat that ref as new
+# instead, so every commit not already on a known remote is checked.
+lines=$(while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -z "${local_sha:-}" ] && continue
+    if [ "${remote_sha:-$zero}" != "$zero" ] && ! git cat-file -e "${remote_sha}^{commit}" 2>/dev/null; then
+        remote_sha=$zero
+    fi
+    echo "$local_ref $local_sha $remote_ref $remote_sha"
+done)
+
 while read -r _ local_sha _ remote_sha; do
     [ -z "${local_sha:-}" ] && continue
     [ "$local_sha" = "$zero" ] && continue          # branch deletion: nothing to scan
@@ -31,6 +43,6 @@ while read -r _ local_sha _ remote_sha; do
         echo "         bypass once (only if a false positive): git push --no-verify" >&2
         status=1
     fi
-done
+done <<< "$lines"
 
 exit $status
