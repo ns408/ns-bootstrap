@@ -149,15 +149,8 @@ flowchart TD
     J --> K([~/.gitconfig written])
 ```
 
-**1Password structure (macOS):**
-```
-Vault: Personal
-└── ns-bootstrap (Secure Note)
-    ├── Git Personal  → name, email, signing_key
-    ├── Git Work      → name, email, signing_key, repo_dir
-    ├── Tokens        → homebrew_github
-    └── Network       → backup_password
-```
+**1Password structure (macOS):** one secure note per tool, holding its Git identities and
+service tokens.
 
 ---
 
