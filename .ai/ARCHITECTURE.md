@@ -88,6 +88,7 @@ flowchart LR
                  ┌────────────────────────────────────────┐
                  │ git vim tmux curl wget jq ripgrep fd   │
                  │ fzf bat btop htop rsync gnupg2 unzip   │
+                 │ gitleaks osv-scanner trivy             │
                  └────────────────────────────────────────┘
                           │
                  developer (inherits minimal)
@@ -101,7 +102,7 @@ flowchart LR
                  ┌────────────────────────────────────────┐
                  │ Terraform  Kubernetes (kubectl/helm)   │
                  │ Azure CLI  skopeo  yamllint            │
-                 │ Wireshark  Trivy   gitleaks            │
+                 │ Wireshark                              │
                  └────────────────────────────────────────┘
 ```
 
@@ -149,15 +150,8 @@ flowchart TD
     J --> K([~/.gitconfig written])
 ```
 
-**1Password structure (macOS):**
-```
-Vault: Personal
-└── ns-bootstrap (Secure Note)
-    ├── Git Personal  → name, email, signing_key
-    ├── Git Work      → name, email, signing_key, repo_dir
-    ├── Tokens        → homebrew_github
-    └── Network       → backup_password
-```
+**1Password structure (macOS):** one secure note per tool, holding its Git identities and
+service tokens.
 
 ---
 
@@ -169,7 +163,9 @@ Every commit on every repo
         ▼
 ~/.config/git/hooks/          ← global (core.hooksPath)
 ├── pre-commit                ← gitleaks scan + delegate to repo .pre-commit-config.yaml
-├── pre-push                  ← gitleaks range-scan of commits being pushed
+├── pre-push                  ← gitleaks range-scan of commits being pushed; publish gate
+│                               in opted-in clones; OSV-Scanner and Trivy
+│                               report (never block) on the pushed tree
 ├── prepare-commit-msg        ← strip AI trailers (early)
 ├── commit-msg                ← strip AI trailers (final)
 └── lib/strip-ai-trailers.sh  ← shared helper sourced by the message hooks
@@ -179,6 +175,8 @@ A repository that sets its own core.hooksPath replaces these hooks entirely
 global folder; CI's gitleaks job is the backstop either way.
 
 gitleaks-missing policy: pre-commit warns (fail-open), pre-push blocks (fail-closed).
+Publish gate missing in an opted-in clone: pre-push blocks (fail-closed).
+OSV-Scanner or Trivy missing: pre-push says the scan was skipped and carries on.
 
 AI tools stripped: Claude · Copilot · GPT · OpenAI · Anthropic · Gemini
                    Codeium · Cursor · Windsurf · Codex · Aider · Cody

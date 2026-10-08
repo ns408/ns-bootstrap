@@ -49,6 +49,8 @@ brew "yq"
 # Security
 brew "git-crypt"
 brew "gitleaks"
+brew "osv-scanner"   # report-only dependency scan in the global pre-push hook
+brew "trivy"         # report-only IaC and image scan in the global pre-push hook
 
 # Version management
 brew "mise"

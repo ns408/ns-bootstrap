@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# Global pre-push hook: scan the commits being pushed for secrets with gitleaks,
-# catching anything already committed locally before it leaves the machine.
+# Global pre-push hook, in order:
+#   1. gitleaks scans the commits being pushed for secrets (blocks);
+#   2. in a clone opted in with `git config publish-boundary.gate PATH`, the
+#      publish gate holds documents that should stay private (blocks);
+#   3. OSV-Scanner and Trivy report known vulnerabilities and misconfigurations
+#      in the tree being pushed (report only, during the trial).
 #
 # Installed by ns-bootstrap — applies to all repositories.
 # To bypass for a single push (only if a false positive): git push --no-verify
@@ -16,7 +20,22 @@ fi
 # git's all-zeros SHA sentinel, meaning "no commit on this side" (deletion / new branch).
 zero="0000000000000000000000000000000000000000"
 status=0
+root=$(git rev-parse --show-toplevel)
+
 # git feeds pre-push one line per ref on stdin: <local_ref> <local_sha> <remote_ref> <remote_sha>
+# Read it once, since every check below needs the same lines. A remote SHA this
+# clone has never fetched (someone pushed since) cannot bound a range: gitleaks
+# then scans nothing and exits 0. Treat that ref as new instead, so every commit
+# not already on a known remote is checked.
+lines=$(while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -z "${local_sha:-}" ] && continue
+    if [ "${remote_sha:-$zero}" != "$zero" ] && ! git cat-file -e "${remote_sha}^{commit}" 2>/dev/null; then
+        remote_sha=$zero
+    fi
+    echo "$local_ref $local_sha $remote_ref $remote_sha"
+done)
+
+# --- 1. Secrets -------------------------------------------------------------
 while read -r _ local_sha _ remote_sha; do
     [ -z "${local_sha:-}" ] && continue
     [ "$local_sha" = "$zero" ] && continue          # branch deletion: nothing to scan
@@ -31,6 +50,87 @@ while read -r _ local_sha _ remote_sha; do
         echo "         bypass once (only if a false positive): git push --no-verify" >&2
         status=1
     fi
-done
+done <<< "$lines"
+
+# --- 2. Publish boundary (opt-in per clone) ---------------------------------
+# A clone opts in with `git config publish-boundary.gate PATH`. The setting
+# lives in .git/config, shared by the clone's worktrees, so nothing about it is
+# published and forks are untouched. There, a missing gate fails closed, as a
+# missing gitleaks does.
+gate=$(git config --get publish-boundary.gate)
+if [ -n "$gate" ]; then
+    if [ ! -x "$gate" ]; then
+        echo "BLOCKED: publish-boundary.gate is set, but $gate is not executable;" >&2
+        echo "         refusing to push unchecked." >&2
+        echo "         bypass once (only if you accept the risk): git push --no-verify" >&2
+        status=1
+    elif ! printf '%s\n' "$lines" | "$gate" gate pre-push --repo "$root" >&2; then
+        echo "BLOCKED: the publish boundary held this push (items above)." >&2
+        status=1
+    fi
+fi
+
+# --- 3. Dependency and IaC scanners (report only) ---------------------------
+# Both exit non-zero on any known vulnerability, so blocking would refuse every
+# push from a repository with one old dependency. During the trial they print
+# what they find and never refuse a push. Each scans the tree being pushed,
+# not the working tree, and says in one line when it has nothing to read.
+lockfiles='(^|/)(package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lock|uv\.lock|poetry\.lock|pdm\.lock|Pipfile\.lock|requirements[^/]*\.txt|Cargo\.lock|go\.mod|Gemfile\.lock|composer\.lock|mix\.lock|pubspec\.lock|gradle\.lockfile|packages\.lock\.json)$'
+trivy_targets='(^|/)(Dockerfile[^/]*|Containerfile)$|(^|/)(_site|dist)/|\.tf$'
+
+scanned=""
+while read -r _ local_sha _ _; do
+    [ -z "${local_sha:-}" ] && continue
+    [ "$local_sha" = "$zero" ] && continue
+    case " $scanned " in *" $local_sha "*) continue ;; esac
+    scanned="$scanned $local_sha"
+
+    files=$(git ls-tree -r --name-only "$local_sha")
+    want_osv=false want_trivy=false
+    grep -qE "$lockfiles" <<< "$files" && want_osv=true
+    grep -qE "$trivy_targets" <<< "$files" && want_trivy=true
+    $want_osv || echo "osv-scanner: skipped, no lockfile in ${local_sha:0:12}" >&2
+    $want_trivy || echo "trivy: skipped, no Dockerfile, built output or .tf in ${local_sha:0:12}" >&2
+    $want_osv || $want_trivy || continue
+
+    tree=$(mktemp -d)
+    git archive "$local_sha" | tar -x -C "$tree"
+
+    if $want_osv; then
+        if command -v osv-scanner >/dev/null 2>&1; then
+            echo "osv-scanner $(osv-scanner --version | awk '/version/ {print $NF; exit}'): scanning ${local_sha:0:12}" >&2
+            # Offline: download OSV's database and match locally, so the
+            # dependency list never leaves the machine. Run from inside the
+            # tree so findings name repository paths, not the temporary one.
+            (cd "$tree" && osv-scanner scan source -r --offline --download-offline-databases \
+                --verbosity error .) >&2
+            case $? in
+                0) echo "osv-scanner: no known vulnerabilities" >&2 ;;
+                1) echo "osv-scanner: vulnerabilities above (reported, not blocking)" >&2 ;;
+                128) echo "osv-scanner: no packages found in the lockfile" >&2 ;;
+                *) echo "osv-scanner: scan failed (not blocking)" >&2 ;;
+            esac
+        else
+            echo "osv-scanner: skipped, not installed" >&2
+        fi
+    fi
+
+    if $want_trivy; then
+        if command -v trivy >/dev/null 2>&1; then
+            echo "trivy $(trivy --version | awk '/^Version/ {print $2; exit}'): scanning ${local_sha:0:12} (its first run downloads a database)" >&2
+            trivy fs --scanners vuln,misconfig --exit-code 2 --quiet \
+                --disable-telemetry --skip-version-check "$tree" >&2
+            case $? in
+                0) echo "trivy: no known vulnerabilities or misconfigurations" >&2 ;;
+                2) echo "trivy: findings above (reported, not blocking)" >&2 ;;
+                *) echo "trivy: scan failed (not blocking)" >&2 ;;
+            esac
+        else
+            echo "trivy: skipped, not installed" >&2
+        fi
+    fi
+
+    rm -rf "$tree"
+done <<< "$lines"
 
 exit $status
