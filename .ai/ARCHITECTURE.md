@@ -164,7 +164,7 @@ Every commit on every repo
 ~/.config/git/hooks/          ← global (core.hooksPath)
 ├── pre-commit                ← gitleaks scan + delegate to repo .pre-commit-config.yaml
 ├── pre-push                  ← gitleaks range-scan of commits being pushed; publish gate
-│                               in opted-in clones; OSV-Scanner and Trivy
+│                               where git config names it; OSV-Scanner and Trivy
 │                               report (never block) on the pushed tree, in
 │                               pinned, offline containers where Docker runs
 ├── prepare-commit-msg        ← strip AI trailers (early)
@@ -176,7 +176,7 @@ A repository that sets its own core.hooksPath replaces these hooks entirely
 global folder; CI's gitleaks job is the backstop either way.
 
 gitleaks-missing policy: pre-commit warns (fail-open), pre-push blocks (fail-closed).
-Publish gate missing in an opted-in clone: pre-push blocks (fail-closed).
+Publish gate named in git config but missing: pre-push blocks (fail-closed).
 OSV-Scanner or Trivy missing (no Docker, no native binary): pre-push says the
 scan was skipped and carries on.
 
