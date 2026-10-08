@@ -122,6 +122,8 @@ jobs:
       - name: Verify security tools
         run: |
           su - testuser -c "command -v gitleaks && gitleaks version"
+          su - testuser -c "command -v osv-scanner && osv-scanner --version"
+          su - testuser -c "command -v trivy && trivy --version"
 
       - name: Verify cloud tools
         if: matrix.profile == 'cloud-engineer'

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Ubuntu-specific installations from official sources (not apt defaults which are outdated):
-# AWS CLI v2, GitHub CLI, Docker Engine, gitleaks, Terraform, kubectl, Helm, Azure CLI
+# AWS CLI v2, GitHub CLI, Docker Engine, gitleaks, OSV-Scanner, Trivy, Terraform, kubectl,
+# Helm, Azure CLI
 set -euo pipefail
 
 # Colors
@@ -184,6 +185,58 @@ if [[ ! -x /usr/local/bin/gitleaks ]]; then
     log_info "gitleaks installed (checksum verified): $(gitleaks version)"
 else
     log_info "gitleaks already installed: $(gitleaks version)"
+fi
+
+# --- OSV-Scanner and Trivy (report-only scanners in the global pre-push hook) ---
+# Neither is in apt or on crates.io, so each is pinned by version and SHA256,
+# as cargo-binstall is. Bump the version and both digests together, after
+# checking the new digests against the release's build provenance.
+log_info "Checking OSV-Scanner and Trivy..."
+OSV_VERSION="2.6.0"
+TRIVY_VERSION="0.74.0"
+if [[ "$(dpkg --print-architecture)" == "arm64" ]]; then
+    OSV_ASSET="osv-scanner_linux_arm64"
+    OSV_SHA256="2c71403eb443d05891c4f268c3ad771cf4f16e5443463fd7851ef8f454d3c7e4"  # gitleaks:allow (public checksum)
+    TRIVY_ASSET="trivy_${TRIVY_VERSION}_Linux-ARM64.tar.gz"
+    TRIVY_SHA256="b94ce1976bbf3c15b514b605ee88be7c6d94a29be2302847ff01cb794d47aad5"  # gitleaks:allow (public checksum)
+else
+    OSV_ASSET="osv-scanner_linux_amd64"
+    OSV_SHA256="ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108"  # gitleaks:allow (public checksum)
+    TRIVY_ASSET="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+    TRIVY_SHA256="2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"  # gitleaks:allow (public checksum)
+fi
+
+if ! command -v osv-scanner &>/dev/null \
+    || [[ "$(osv-scanner --version | awk '/version/ {print $NF; exit}')" != "$OSV_VERSION" ]]; then
+    curl -fsSL "https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/${OSV_ASSET}" \
+        -o /tmp/osv-scanner
+    if ! printf '%s  %s\n' "$OSV_SHA256" /tmp/osv-scanner | sha256sum -c --quiet -; then
+        rm -f /tmp/osv-scanner
+        log_warn "OSV-Scanner checksum verification failed: refusing to install"
+        exit 1
+    fi
+    sudo install -m 0755 /tmp/osv-scanner /usr/local/bin/osv-scanner
+    rm -f /tmp/osv-scanner
+    log_info "OSV-Scanner ${OSV_VERSION} installed (checksum verified)"
+else
+    log_info "OSV-Scanner already installed: ${OSV_VERSION}"
+fi
+
+if ! command -v trivy &>/dev/null \
+    || [[ "$(trivy --version | awk '/^Version/ {print $2; exit}')" != "$TRIVY_VERSION" ]]; then
+    curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${TRIVY_ASSET}" \
+        -o "/tmp/${TRIVY_ASSET}"
+    if ! printf '%s  %s\n' "$TRIVY_SHA256" "/tmp/${TRIVY_ASSET}" | sha256sum -c --quiet -; then
+        rm -f "/tmp/${TRIVY_ASSET}"
+        log_warn "Trivy checksum verification failed: refusing to install"
+        exit 1
+    fi
+    tar -xzf "/tmp/${TRIVY_ASSET}" -C /tmp/ trivy
+    sudo install -m 0755 /tmp/trivy /usr/local/bin/trivy
+    rm -f "/tmp/${TRIVY_ASSET}" /tmp/trivy
+    log_info "Trivy ${TRIVY_VERSION} installed (checksum verified)"
+else
+    log_info "Trivy already installed: ${TRIVY_VERSION}"
 fi
 
 # --- Terraform (official HashiCorp binary from GitHub releases) ---
