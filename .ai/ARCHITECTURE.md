@@ -322,6 +322,7 @@ ns-bootstrap/
 ├── scripts/
 │   ├── scheduled-update-daily.sh         # macOS daily job
 │   ├── bump-git-pins.sh                  # proposes pin moves (14-day cooldown)
+│   ├── check-scanner-pins.sh             # proposes scanner bumps for Pin Check
 │   ├── launchd/*.plist.template          # daily LaunchAgent (default)
 │   └── launchd-daemon/*.daemon.plist.template  # opt-in LaunchDaemon (multi-account)
 ├── tests/*.bats                  # bats unit tests
