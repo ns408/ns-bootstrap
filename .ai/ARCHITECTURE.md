@@ -88,7 +88,7 @@ flowchart LR
                  ┌────────────────────────────────────────┐
                  │ git vim tmux curl wget jq ripgrep fd   │
                  │ fzf bat btop htop rsync gnupg2 unzip   │
-                 │ gitleaks osv-scanner trivy             │
+                 │ gitleaks; osv-scanner trivy (Ubuntu)   │
                  └────────────────────────────────────────┘
                           │
                  developer (inherits minimal)
@@ -165,7 +165,8 @@ Every commit on every repo
 ├── pre-commit                ← gitleaks scan + delegate to repo .pre-commit-config.yaml
 ├── pre-push                  ← gitleaks range-scan of commits being pushed; publish gate
 │                               in opted-in clones; OSV-Scanner and Trivy
-│                               report (never block) on the pushed tree
+│                               report (never block) on the pushed tree, in
+│                               pinned, offline containers where Docker runs
 ├── prepare-commit-msg        ← strip AI trailers (early)
 ├── commit-msg                ← strip AI trailers (final)
 └── lib/strip-ai-trailers.sh  ← shared helper sourced by the message hooks
@@ -176,7 +177,8 @@ global folder; CI's gitleaks job is the backstop either way.
 
 gitleaks-missing policy: pre-commit warns (fail-open), pre-push blocks (fail-closed).
 Publish gate missing in an opted-in clone: pre-push blocks (fail-closed).
-OSV-Scanner or Trivy missing: pre-push says the scan was skipped and carries on.
+OSV-Scanner or Trivy missing (no Docker, no native binary): pre-push says the
+scan was skipped and carries on.
 
 AI tools stripped: Claude · Copilot · GPT · OpenAI · Anthropic · Gemini
                    Codeium · Cursor · Windsurf · Codex · Aider · Cody
