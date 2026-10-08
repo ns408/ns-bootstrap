@@ -22,5 +22,8 @@ node_modules/
 # Local working files (scratch, drafts, handovers — never published)
 temp/
 
+# Requests from other repositories: triaged here, never pushed
+docs/intake/
+
 # Misc
 *.log
