@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Global pre-push hook, in order:
 #   1. gitleaks scans the commits being pushed for secrets (blocks);
-#   2. in a clone opted in with `git config publish-boundary.gate PATH`, the
-#      publish gate holds documents that should stay private (blocks);
+#   2. where git config names a publish gate, it holds documents that should
+#      stay private (blocks), in the repositories it decides are in scope;
 #   3. OSV-Scanner and Trivy report known vulnerabilities and misconfigurations
 #      in the tree being pushed, in pinned containers where Docker is running
 #      (report only, during the trial).
@@ -53,11 +53,15 @@ while read -r _ local_sha _ remote_sha; do
     fi
 done <<< "$lines"
 
-# --- 2. Publish boundary (opt-in per clone) ---------------------------------
-# A clone opts in with `git config publish-boundary.gate PATH`. The setting
-# lives in .git/config, shared by the clone's worktrees, so nothing about it is
-# published and forks are untouched. There, a missing gate fails closed, as a
-# missing gitleaks does.
+# --- 2. Publish boundary (opt-in, kept off the repository) -------------------
+# The gate's path comes from git config at any level, so an account names it
+# once, in a file bootstrap never rewrites:
+#   git config --file ~/.config/git/config publish-boundary.gate PATH
+# The gate then decides from its own private list which repositories it holds;
+# a clone can also opt itself in by setting the same key in .git/config.
+# Neither setting is committed, so other people's clones and forks are
+# untouched. Where a gate is named but missing, the push fails closed, as for a
+# missing gitleaks.
 gate=$(git config --get publish-boundary.gate)
 if [ -n "$gate" ]; then
     if [ ! -x "$gate" ]; then
