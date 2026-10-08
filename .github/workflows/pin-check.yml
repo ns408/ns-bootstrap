@@ -29,12 +29,17 @@ jobs:
         run: |
           findings=()
 
-          # --- cargo-binstall: version and per-arch SHA256 pinned in install-modern-tools.sh
+          # --- cargo-binstall: version and per-arch SHA256 pinned in install-modern-tools.sh.
+          # Proposed once a release is 14 days old, the cooldown every other pin uses.
           script=install/common/install-modern-tools.sh
           pinned=$(sed -n 's/^ *BINSTALL_VERSION="\(.*\)"/\1/p' "$script")
-          latest=$(gh release view --repo cargo-bins/cargo-binstall --json tagName -q .tagName | sed 's/^v//')
-          if [ -z "$pinned" ] || [ -z "$latest" ]; then
+          read -r latest published < <(gh release view --repo cargo-bins/cargo-binstall \
+            --json tagName,publishedAt -q '"\(.tagName | ltrimstr("v")) \(.publishedAt)"')
+          age=$(( ($(date +%s) - $(date -d "${published:-now}" +%s)) / 86400 ))
+          if [ -z "$pinned" ] || [ -z "${latest:-}" ]; then
             findings+=("- Could not read the cargo-binstall pin (pinned: \`${pinned:-?}\`, latest: \`${latest:-?}\`). The check itself may need fixing.")
+          elif [ "$pinned" != "$latest" ] && [ "$age" -lt 14 ]; then
+            echo "cargo-binstall ${latest} is ${age} days old; proposed once it is 14."
           elif [ "$pinned" != "$latest" ]; then
             # Verify the new release's build attestation before proposing its
             # digests, so the bump is not trust-on-first-use.
