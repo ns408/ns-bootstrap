@@ -169,23 +169,14 @@ PIN
     # Rust CLI tools (atuin included), one at a time: these are conveniences, and
     # one crate whose release assets change shape upstream must not abort the
     # whole bootstrap. The list lives in packages/ so update-my-system upgrades
-    # exactly what was installed. --disable-strategies compile refuses the
-    # source-build fallback outright, since that slow path is what this replaces.
-    # --root rather than --install-path: it records what was installed, so a
+    # exactly what was installed, by the same script and the same rules (official
+    # release binaries only; see install-binstall-tools.sh). It installs with
+    # --root rather than --install-path: that records what was installed, so a
     # re-run skips tools that are already current instead of downloading them.
     log_info "Installing Rust CLI tools (prebuilt binaries)..."
     mkdir -p "${HOME}/.local/bin"
-    tools_failed=()
-    while IFS= read -r crate; do
-        [[ -z "$crate" || "$crate" == \#* ]] && continue
-        if ! cargo-binstall --no-confirm --disable-strategies compile \
-            --root "${HOME}/.local" "$crate"; then
-            log_warn "cargo-binstall ${crate} failed — continuing"
-            tools_failed+=("$crate")
-        fi
-    done < "${SCRIPT_DIR}/../../packages/binstall-tools.ubuntu"
-    if [[ ${#tools_failed[@]} -gt 0 ]]; then
-        log_warn "Tools that failed to install: ${tools_failed[*]}"
+    if ! bash "${SCRIPT_DIR}/install-binstall-tools.sh"; then
+        log_warn "Some Rust CLI tools failed to install; continuing"
     fi
 
     # duf (better df) — available via apt on Ubuntu 22.04+
