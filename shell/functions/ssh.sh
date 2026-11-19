@@ -18,7 +18,7 @@ ssh_public_key() {
 # Create ed25519 SSH key pair
 function ssh_create_ssh_key_pair() {
   if [[ -z "$1" || -z "$2" ]]; then
-    echo 'Usage: ssh_create_ssh_key_pair ${HOME}/.ssh/keys/personal/homeuse "home user"'
+    echo 'Usage: ssh_create_ssh_key_pair ~/.ssh/id_ed25519_example "you@host"'
   else
     ssh-keygen -o -a 100 -t ed25519 -f "$1" -C "$2"
   fi
@@ -37,7 +37,8 @@ function rsync_ssh_upload() {
   local servername=$1
   local localdir=$2
   local remotedir=$3
-  rsync --bwlimit=1500 -av --progress -h -e "ssh" "${localdir}" "${servername}:${remotedir}"
+  # RSYNC_BWLIMIT: upload limit in KiB/s (default 0, no limit)
+  rsync --bwlimit="${RSYNC_BWLIMIT:-0}" -av --progress -h -e "ssh" "${localdir}" "${servername}:${remotedir}"
 }
 
 # Display SSH key fingerprint

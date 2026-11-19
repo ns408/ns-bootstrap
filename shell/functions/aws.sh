@@ -105,7 +105,7 @@ function aws_assume_role_creds() {
   "${ROLE_ARN:?You must set ROLE_ARN}"
 
   aws sts assume-role \
-    --region ap-southeast-2 \
+    --region "${AWS_REGION:-${AWS_DEFAULT_REGION:-$(aws configure get region)}}" \
     --role-arn "${ROLE_ARN}" \
     --role-session-name "$(whoami)-$(date +%s)" \
     | jq -r ".Credentials|to_entries|map(\"\(.key)=\(.value|tostring)\")|.[]" \

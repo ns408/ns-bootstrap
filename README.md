@@ -193,7 +193,7 @@ update-macos-install # Manual — install macOS updates (may reboot)
 ### Hostname Configuration
 
 ```bash
-YOUR_HOSTNAME="my-macbook-pro-m2"
+YOUR_HOSTNAME="my-hostname"
 sudo scutil --set HostName "$YOUR_HOSTNAME"
 sudo scutil --set ComputerName "$YOUR_HOSTNAME"
 sudo scutil --set LocalHostName "$YOUR_HOSTNAME"
@@ -252,7 +252,7 @@ SUBNET=10.0.0.0/24 bash install/ubuntu/install-remote-desktop.sh  # override sub
 | Platform | Architecture | Status |
 |----------|-------------|--------|
 | macOS (Apple Silicon) | ARM64 | Tested |
-| Ubuntu 24.04 LTS | ARM64 | Tested (SSH) |
+| Ubuntu 24.04 LTS | ARM64 | Tested |
 | macOS (Intel) | x86_64 | Expected to work, untested |
 | Ubuntu 24.04 LTS | x86_64 | Expected to work, untested |
 

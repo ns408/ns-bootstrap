@@ -9,8 +9,10 @@ function generate_line() {
 }
 
 # YouTube/media downloads (uses yt-dlp as youtube-dl replacement)
-Y_dirpath="${DATA_DIR}/youtube_videos"
-Y_dl='yt-dlp --user-agent Safari/537.1 --referer http://www.youtube.com/youtube?feature=inp-yo-heh'
+# YT_DIR: where downloads land; YT_QUEUE: one URL per line, for download_youtube.
+Y_dirpath="${YT_DIR:-${DATA_DIR}/youtube_videos}"
+Y_queue="${YT_QUEUE:-${Y_dirpath}/video_download.txt}"
+Y_dl='yt-dlp'
 
 youtube_audio() { cd "$Y_dirpath" && $Y_dl --audio-format mp3 -f bestaudio -x "$@"; }
 youtube_video() { cd "$Y_dirpath" && $Y_dl --no-playlist "$@"; }
@@ -19,15 +21,10 @@ download_youtube() {
   input="$1"
   echo $input
   if [[ "$input" == "video" || "$input" == "audio" ]]; then
-    while read list; do "youtube-${input}" $list; done < "${Y_dirpath}/video_download.txt"
+    while read list; do "youtube-${input}" $list; done < "${Y_queue}"
   else
     echo -e "\nUse either 'audio' or 'video' and '-k' to keep video after audio download"
   fi
-}
-
-# Port knocking
-function knock() {
-  for i in 60032 38206 54462; do nmap -r -Pn --max-retries 0 $1 -p $i; done
 }
 
 check_port() {

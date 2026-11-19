@@ -85,8 +85,14 @@ function disk_verify() {
 }
 
 # Chrome profile management
-function google_chrome_nsjunk4() {
-  open -a "Google Chrome" --args --profile-directory="Profile 5" --explicitly-allowed-ports=119,563
+# Usage: chrome_profile "Profile 2" [extra Chrome flags...]   (chrome_list_profiles shows the names)
+function chrome_profile() {
+  if [[ -z "$1" ]]; then
+    echo 'Usage: chrome_profile "Profile 2" [extra Chrome flags...]'
+    return 1
+  fi
+  local dir="$1"; shift
+  open -a "Google Chrome" --args --profile-directory="$dir" "$@"
 }
 
 function chrome_list_profiles() {
@@ -100,10 +106,10 @@ function chrome_list_profiles() {
 function timemachine() {
   echo "
     tmutil listlocalsnapshots /
-    tmutil deletelocalsnapshots 2020-05-01-085636
+    tmutil deletelocalsnapshots <YYYY-MM-DD-HHMMSS>
 
     tmutil listbackups
-    tmutil delete /Volumes/xen_t5/Backups.backupdb/panda-mac/2020-01-11-031604"
+    tmutil delete <path printed by listbackups>"
 }
 
 # Disable macOS sleep
@@ -112,7 +118,8 @@ function disable_macos_sleep() {
 }
 
 # Shared permissions
-alias shared_perms='sudo /bin/bash -c "chown -R $(whoami):shared /Users/Shared; chmod -R 2775 /Users/Shared"'
+# SHARED_GROUP: the group to own /Users/Shared (default: the group that owns it now)
+alias shared_perms='sudo /bin/bash -c "chown -R $(whoami):${SHARED_GROUP:-$(stat -f %Sg /Users/Shared)} /Users/Shared; chmod -R 2775 /Users/Shared"'
 
 # Homebrew token — only needed if you hit GitHub API rate limits
 # Usage: brew-auth   (fetches token from 1Password, exports for current session)
