@@ -89,6 +89,7 @@ brew "mysql-client"
 
 # Security tools
 brew "git-crypt"
+brew "gitleaks"
 brew "qrencode"
 
 # GUI apps (developer + cloud-specific)

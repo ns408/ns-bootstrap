@@ -298,7 +298,7 @@ ns-bootstrap/
 │   ├── keys/*.asc                # vendored signing keys (AWS CLI, Helm)
 │   └── ubuntu/install-{ubuntu-extras,remote-desktop}.sh
 ├── packages/
-│   ├── Brewfile.{minimal,developer,cloud-engineer}
+│   ├── Brewfile.{minimal,developer,cloud-engineer,work}
 │   ├── apt-packages.{minimal,developer,cloud-engineer}
 │   ├── binstall-tools.ubuntu     # Rust CLI tools fetched by cargo-binstall
 │   └── git-pins                  # pinned commits: oh-my-zsh, zsh and vim plugins

@@ -1,0 +1,35 @@
+# Work Profile - a company-managed Mac
+# Usage: brew bundle --file=Brewfile.work
+#
+# Open-source command-line formulae from homebrew/core only: no taps, casks
+# or App Store apps, nothing that needs a business licence, and none of the
+# personal, messaging, VPN, tunnelling or network-scanning tools the other
+# profiles carry. tests/brewfile-work.bats holds these rules, and Brew
+# Bundle Check verifies every licence each month.
+#
+# Apps the company prefers belong in a Brewfile of your own, kept outside
+# this repository.
+
+# Shell and Git
+brew "git"
+brew "git-lfs"
+brew "gh"
+brew "gitleaks"
+brew "pre-commit"
+brew "tmux"
+brew "jq"
+
+# Modern CLI tools
+brew "starship"
+brew "atuin"
+brew "zoxide"
+brew "fzf"
+brew "eza"
+brew "bat"
+brew "git-delta"
+brew "ripgrep"
+brew "fd"
+
+# Version management
+brew "mise"
+brew "uv"

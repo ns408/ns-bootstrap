@@ -32,6 +32,9 @@ jobs:
           # Tools installed by install-ubuntu-extras.sh (parse command -v checks)
           grep -oP 'command -v \K\S+' install/ubuntu/install-ubuntu-extras.sh \
             >> /tmp/ubuntu-apt.txt
+          # ...and binaries it installs to /usr/local/bin behind a file check (gitleaks)
+          grep -oP '/usr/local/bin/\K[a-z0-9-]+' install/ubuntu/install-ubuntu-extras.sh \
+            >> /tmp/ubuntu-apt.txt
 
           # Rust CLI tools fetched by cargo-binstall (crate names)
           grep -v '^\s*#' packages/binstall-tools.ubuntu | grep -v '^\s*$' \
