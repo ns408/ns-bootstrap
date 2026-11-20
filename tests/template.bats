@@ -57,6 +57,25 @@ teardown() {
     grep -qx "    email = person@work.example.com" "${TEST_DIR}/gitconfig"
 }
 
+@test "the work body is the personal template less identity, signing, credentials, hooks path and includeIf" {
+    body="$(work_gitconfig_body "${ROOT}/dotfiles/git/.gitconfig.template")"
+    [[ "$body" != *"[user]"* && "$body" != *"[credential]"* && "$body" != *"[includeIf"* ]]
+    [[ "$body" != *"[gpg"* && "$body" != *hooksPath* && "$body" != *gpgsign* ]]
+    # Everything else is carried over: each remaining key line appears in the template.
+    while IFS= read -r line; do
+        [[ -z "$line" || "$line" == \#* || "$line" == \[* ]] && continue
+        grep -qxF -- "$line" "${ROOT}/dotfiles/git/.gitconfig.template" || { echo "not from the template: $line"; false; }
+    done <<< "$body"
+    [[ "$body" == *"[alias]"* && "$body" == *"defaultBranch = main"* ]]
+}
+
+@test "the work file quotes values so git reads them back exactly" {
+    GIT_NAME_WORK='Example "Q" Person; #1 \ x' GIT_EMAIL_WORK=person@work.example.com WORK_SIGNING=none
+    work_gitconfig "${ROOT}/dotfiles/git/.gitconfig.template" > "${TEST_DIR}/work"
+    [[ "$(git config --file "${TEST_DIR}/work" user.name)" == "$GIT_NAME_WORK" ]]
+    [[ "$(grep -c '\${' "${TEST_DIR}/work")" == 0 ]]
+}
+
 @test "a missing template returns 1 and writes nothing" {
     run process_template "${TEST_DIR}/no-such.template" "${TEST_DIR}/out"
     [[ "$status" -eq 1 ]]

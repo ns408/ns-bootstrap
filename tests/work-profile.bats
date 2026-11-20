@@ -79,10 +79,11 @@ normalised() {
     [[ -z "$(find "$TEST_HOME" -mindepth 1 -maxdepth 1 ! -name stubs ! -name brew ! -name stub.log ! -name etc ! -name no-pins)" ]]
 }
 
-@test "a real work run installs Brewfile.work only, remembers work, and stops before secrets and git hooks" {
+@test "a real work run installs Brewfile.work only, remembers work, and stops before git hooks" {
     bootstrap --profile work --yes
     [[ "$status" -eq 0 ]]
-    [[ "$output" == *"Stopping before secrets and git hooks"* ]]
+    [[ "$output" == *"Skipping the work git identity: set NS_BOOTSTRAP_GIT_NAME and NS_BOOTSTRAP_GIT_EMAIL"* ]]
+    [[ "$output" == *"Stopping before git hooks and scheduled updates"* ]]
     grep -qx "brew bundle --file=${ROOT}/packages/Brewfile.work --verbose" "$STUB_LOG"
     grep -qx "brew analytics off" "$STUB_LOG"
     refute_grep -E -- '--cask|brew install' "$STUB_LOG"
@@ -108,6 +109,17 @@ normalised() {
     [[ ! -L "${TEST_HOME}/.npmrc" ]] && grep -qx 'registry=https://npm.example.com/' "${TEST_HOME}/.npmrc"
     grep -q 'pypi.example.com' "${TEST_HOME}/.config/pip/pip.conf"
     [[ "$(readlink "${TEST_HOME}/.vimrc")" == "${ROOT}/dotfiles/vim/.vimrc" ]]
+}
+
+@test "a work run with the name and email set writes the work identity and leaves ~/.gitconfig alone" {
+    printf '[credential]\n\thelper = company-helper\n' > "${TEST_HOME}/.gitconfig"
+    before="$(cat "${TEST_HOME}/.gitconfig")"
+    NS_BOOTSTRAP_GIT_NAME="Example Person" NS_BOOTSTRAP_GIT_EMAIL="person@work.example.com" bootstrap --profile work --yes
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == *"Work git identity ready"* ]]
+    [[ "$(git config --file "${TEST_HOME}/.config/ns-bootstrap/gitconfig" user.email)" == person@work.example.com ]]
+    [[ "$(cat "${TEST_HOME}/.gitconfig")" == "$before" ]]
+    refute_grep -i hookspath "${TEST_HOME}/.config/git/config"
 }
 
 @test "with no npm or pip config, a work run copies them in as files you own" {

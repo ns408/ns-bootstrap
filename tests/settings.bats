@@ -72,6 +72,28 @@ EOF
     [[ "$(ns_setting NS_BOOTSTRAP_DAILY_UPDATE)" == off ]]
 }
 
+@test "1Password and signing settings: vault Personal everywhere, work stores nothing and signs nothing by default" {
+    [[ "$(ns_setting NS_BOOTSTRAP_OP_VAULT minimal)" == Personal ]]
+    [[ "$(ns_setting NS_BOOTSTRAP_OP_VAULT work)" == Personal ]]
+    [[ "$(ns_setting NS_BOOTSTRAP_SECRETS_PROVIDER work)" == none ]]
+    [[ "$(ns_setting NS_BOOTSTRAP_GIT_SIGNING work)" == none ]]
+    printf 'NS_BOOTSTRAP_SECRETS_PROVIDER=pass\nNS_BOOTSTRAP_GIT_SIGNING=x509\n' > "$SETTINGS"
+    run ns_settings_check work
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"NS_BOOTSTRAP_SECRETS_PROVIDER must be none or 1password"* ]]
+    [[ "$output" == *"NS_BOOTSTRAP_GIT_SIGNING must be none, ssh-file, 1password or gpg"* ]]
+}
+
+@test "the shell's secrets functions use the vault setting, and Personal without one" {
+    command -v zsh >/dev/null || skip "zsh not installed"
+    lib="${BATS_TEST_DIRNAME}/../shell/functions/secrets.sh"
+    run zsh -c 'source "$1"; echo "$_OP_VAULT"' _ "$lib"
+    [[ "$output" == Personal ]]
+    echo 'NS_BOOTSTRAP_OP_VAULT=Employee' > "$SETTINGS"
+    run env NS_BOOTSTRAP_DIR="${BATS_TEST_DIRNAME}/.." zsh -c 'source "$1"; echo "$_OP_VAULT"' _ "$lib"
+    [[ "$output" == Employee ]]
+}
+
 @test "valid settings pass the check" {
     printf 'NS_BOOTSTRAP_DAILY_UPDATE=on\nNS_BOOTSTRAP_DAILY_SCOPE=formulae\n' > "$SETTINGS"
     run ns_settings_check minimal
