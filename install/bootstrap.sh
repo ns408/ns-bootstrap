@@ -108,6 +108,12 @@ if [[ "$PROFILE" == work ]]; then
     fi
 fi
 
+remember_work() {
+    mkdir -p "$(dirname "$NS_BOOTSTRAP_PROFILE_FILE")"
+    echo work > "$NS_BOOTSTRAP_PROFILE_FILE"
+    log_info "Remembered the work profile in ${NS_BOOTSTRAP_PROFILE_FILE}"
+}
+
 check_settings_or_exit() {   # PROFILE
     local errors
     if ! errors="$(ns_settings_check "$1")"; then
@@ -171,8 +177,46 @@ work_dry_run() {
         echo "  ${key}=$(ns_setting "$key" work) ($(ns_setting_source "$key" work))"
     done
     echo ""
-    echo "Not yet handled for work: dotfiles, git hooks, secrets and scheduled updates."
-    echo "A real run installs the packages above, then stops before any of those."
+    echo ""
+    echo "Dotfiles (nothing of yours is moved or replaced; a file that changes is backed up first):"
+    local pair dest what f conflicts name file winner
+    for pair in .zshrc:shell/.zshrc .zprofile:shell/.zprofile; do
+        dest="${HOME}/${pair%%:*}"
+        case "$(source_block_action "$dest" "${PROJECT_ROOT}/dotfiles/${pair#*:}")" in
+            create)       what="create it, holding only the ns-bootstrap block" ;;
+            insert)       what="add the ns-bootstrap block at the top; your lines stay, after it" ;;
+            update)       what="update the ns-bootstrap block" ;;
+            current)      what="already sources ns-bootstrap; unchanged" ;;
+            replace-link) what="replace ns-bootstrap's old symlink with a file holding the block" ;;
+            skip-link)    what="a symlink to $(readlink "$dest"); left alone" ;;
+        esac
+        echo "  ~/${pair%%:*}: ${what}"
+    done
+    for f in .vimrc .inputrc .gitignore_global .tmux.conf .config/starship.toml .config/atuin/config.toml; do
+        if [[ -e "${HOME}/${f}" && ! -L "${HOME}/${f}" ]]; then what="keep yours"; else what="link to ns-bootstrap's"; fi
+        echo "  ~/${f}: ${what}"
+    done
+    for f in .npmrc .config/pip/pip.conf; do
+        if [[ -e "${HOME}/${f}" && ! -L "${HOME}/${f}" ]]; then what="keep yours"; else what="copy ns-bootstrap's in, as yours to edit"; fi
+        echo "  ~/${f}: ${what}"
+    done
+    echo ""
+    echo "Set both by ns-bootstrap and by shell files already here (names only, never values):"
+    conflicts="$(work_conflicts "$PROJECT_ROOT" "$HOME" "${NS_BOOTSTRAP_ETC_DIR:-/etc}")"
+    if [[ -z "$conflicts" ]]; then
+        echo "  none found"
+    else
+        while IFS=$'\t' read -r name file winner; do
+            if [[ "$winner" == theirs ]]; then
+                echo "  ${name}: ${file} runs later, so its value wins"
+            else
+                echo "  ${name}: ${file} runs earlier, so ns-bootstrap's value wins"
+            fi
+        done <<< "$conflicts"
+    fi
+    echo "  (Search paths such as PATH add up and are not listed; oh-my-zsh's own aliases are not checked.)"
+    echo ""
+    echo "Not yet handled for work: git hooks and secrets. A real run stops before them."
     echo ""
     echo -e "${GREEN}No changes were made.${NC}"
 }
@@ -257,7 +301,9 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
     echo -e "${YELLOW}This will:${NC}"
     if [[ "$IS_WORK" == true ]]; then
         echo "  - Install the work packages (packages/Brewfile.work) via brew"
-        echo "  - Stop before dotfiles, git hooks and secrets (not yet handled for work)"
+        echo "  - Source ns-bootstrap from the top of ~/.zshrc and ~/.zprofile, keeping their lines"
+        echo "  - Add the other dotfiles only where you have none (see --dry-run)"
+        echo "  - Stop before secrets and git hooks (not yet handled for work)"
     else
         echo "  - Install ${PROFILE} packages via ${PKG_MGR}"
         echo "  - Install modern CLI tools (ripgrep, fd, fzf, bat, zoxide, etc.)"
@@ -272,11 +318,7 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         [[ "${confirm:-n}" != "y" ]] && { echo "Aborted."; exit 0; }
     fi
 
-    if [[ "$IS_WORK" == true ]]; then
-        mkdir -p "$(dirname "$NS_BOOTSTRAP_PROFILE_FILE")"
-        echo work > "$NS_BOOTSTRAP_PROFILE_FILE"
-        log_info "Remembered the work profile in ${NS_BOOTSTRAP_PROFILE_FILE}"
-    fi
+    [[ "$IS_WORK" == true ]] && remember_work
 
     # === Step 4: Install Package Manager ===
     log_step "Step 3: Ensuring package manager is available..."
@@ -463,40 +505,35 @@ else
         exit 0
     fi
     log_info "Dotfiles-only mode: skipping package installation"
+    [[ "$IS_WORK" == true ]] && remember_work
 fi
 
-# The work profile stops here until its dotfile, git-hook and secrets handling
-# exist: the steps below would replace files and settings that a company Mac's
-# IT may own.
+# Global git hooks set core.hooksPath for every repository, which stops a
+# company repo's own hooks (Git LFS among them) from running; the work
+# profile's version, which runs them too, comes later. safe.directory serves
+# the two-account setup, which a work Mac does not have.
 if [[ "$IS_WORK" == true ]]; then
-    echo ""
-    if [[ "$DOTFILES_ONLY" == true ]]; then
-        log_warn "Nothing to do yet for --dotfiles-only --profile work: dotfiles, git hooks and secrets are not handled for work yet."
-        exit 1
+    log_info "Work profile: leaving git's global hooks and safe.directory alone"
+else
+    # === Global git hooks (secrets scan + AI trailer stripping) ===
+    HOOKS_SRC="${PROJECT_ROOT}/dotfiles/git/hooks"
+    HOOKS_DEST="${HOME}/.config/git/hooks"
+    if [[ -d "$HOOKS_SRC" ]]; then
+        mkdir -p "$HOOKS_DEST"
+        # -R so the lib/ subdir (shared helpers) is copied, not just top-level files.
+        cp -R "$HOOKS_SRC"/. "$HOOKS_DEST/"
+        # Only the hook entrypoints need +x; sourced helpers under lib/ do not.
+        chmod +x "$HOOKS_DEST"/pre-commit "$HOOKS_DEST"/pre-push \
+                 "$HOOKS_DEST"/commit-msg "$HOOKS_DEST"/prepare-commit-msg
+        git config --global core.hooksPath "$HOOKS_DEST"
+        log_info "Global git hooks installed at ${HOOKS_DEST}"
     fi
-    log_info "Work packages installed."
-    log_warn "Stopping before dotfiles, git hooks and secrets: they are not handled for the work profile yet. Nothing else was changed."
-    exit 0
-fi
 
-# === Global git hooks (secrets scan + AI trailer stripping) ===
-HOOKS_SRC="${PROJECT_ROOT}/dotfiles/git/hooks"
-HOOKS_DEST="${HOME}/.config/git/hooks"
-if [[ -d "$HOOKS_SRC" ]]; then
-    mkdir -p "$HOOKS_DEST"
-    # -R so the lib/ subdir (shared helpers) is copied, not just top-level files.
-    cp -R "$HOOKS_SRC"/. "$HOOKS_DEST/"
-    # Only the hook entrypoints need +x; sourced helpers under lib/ do not.
-    chmod +x "$HOOKS_DEST"/pre-commit "$HOOKS_DEST"/pre-push \
-             "$HOOKS_DEST"/commit-msg "$HOOKS_DEST"/prepare-commit-msg
-    git config --global core.hooksPath "$HOOKS_DEST"
-    log_info "Global git hooks installed at ${HOOKS_DEST}"
-fi
-
-# === Mark shared repo as git safe.directory (for two-account setup) ===
-if ! git config --global --get-all safe.directory 2>/dev/null | grep -qF "$PROJECT_ROOT"; then
-    log_info "Adding ${PROJECT_ROOT} to git safe.directory..."
-    git config --global --add safe.directory "$PROJECT_ROOT"
+    # === Mark shared repo as git safe.directory (for two-account setup) ===
+    if ! git config --global --get-all safe.directory 2>/dev/null | grep -qF "$PROJECT_ROOT"; then
+        log_info "Adding ${PROJECT_ROOT} to git safe.directory..."
+        git config --global --add safe.directory "$PROJECT_ROOT"
+    fi
 fi
 
 # === Write NS_BOOTSTRAP_DIR to machine config ===
@@ -543,8 +580,17 @@ BACKUP_DIR="${HOME}/.dotfiles-backup/$(date +%Y%m%d%H%M%S)"
 BACKUP_CREATED=false
 LINKS_CHANGED=0
 
-# Shell configs
-if [[ "$OS" == "macos" ]]; then
+# The other dotfiles: on a work Mac, one that is already there stays.
+link_dotfile() {   # SRC DEST
+    if [[ "$IS_WORK" == true ]]; then keep_or_link "$1" "$2"; else symlink_file "$1" "$2"; fi
+}
+
+# Shell configs. On a work Mac, ~/.zshrc and ~/.zprofile stay yours (or IT's):
+# a block at their top sources ns-bootstrap's, and their own lines run after.
+if [[ "$IS_WORK" == true ]]; then
+    source_block "${HOME}/.zshrc" "${PROJECT_ROOT}/dotfiles/shell/.zshrc"
+    source_block "${HOME}/.zprofile" "${PROJECT_ROOT}/dotfiles/shell/.zprofile"
+elif [[ "$OS" == "macos" ]]; then
     symlink_file "${PROJECT_ROOT}/dotfiles/shell/.zshrc" "${HOME}/.zshrc"
     symlink_file "${PROJECT_ROOT}/dotfiles/shell/.zprofile" "${HOME}/.zprofile"
 else
@@ -554,39 +600,47 @@ fi
 
 # Vim
 if [[ -f "${PROJECT_ROOT}/dotfiles/vim/.vimrc" ]]; then
-    symlink_file "${PROJECT_ROOT}/dotfiles/vim/.vimrc" "${HOME}/.vimrc"
+    link_dotfile "${PROJECT_ROOT}/dotfiles/vim/.vimrc" "${HOME}/.vimrc"
 fi
 
 # Inputrc
 if [[ -f "${PROJECT_ROOT}/dotfiles/misc/.inputrc" ]]; then
-    symlink_file "${PROJECT_ROOT}/dotfiles/misc/.inputrc" "${HOME}/.inputrc"
+    link_dotfile "${PROJECT_ROOT}/dotfiles/misc/.inputrc" "${HOME}/.inputrc"
 fi
 
 # Gitignore global
 if [[ -f "${PROJECT_ROOT}/dotfiles/git/.gitignore_global" ]]; then
-    symlink_file "${PROJECT_ROOT}/dotfiles/git/.gitignore_global" "${HOME}/.gitignore_global"
+    link_dotfile "${PROJECT_ROOT}/dotfiles/git/.gitignore_global" "${HOME}/.gitignore_global"
 fi
 
 # Tmux
 if [[ -f "${PROJECT_ROOT}/dotfiles/tmux/.tmux.conf" ]]; then
-    symlink_file "${PROJECT_ROOT}/dotfiles/tmux/.tmux.conf" "${HOME}/.tmux.conf"
+    link_dotfile "${PROJECT_ROOT}/dotfiles/tmux/.tmux.conf" "${HOME}/.tmux.conf"
 fi
 
 # Starship prompt
 if [[ -f "${PROJECT_ROOT}/dotfiles/starship/starship.toml" ]]; then
     mkdir -p "${HOME}/.config"
-    symlink_file "${PROJECT_ROOT}/dotfiles/starship/starship.toml" "${HOME}/.config/starship.toml"
+    link_dotfile "${PROJECT_ROOT}/dotfiles/starship/starship.toml" "${HOME}/.config/starship.toml"
 fi
 
-# npm security config
+# npm security config. A ~/.npmrc of your own (a company registry, a CA file,
+# an auth token) is kept, as pip.conf is below: replacing it would quietly
+# change where npm installs from.
 if [[ -f "${PROJECT_ROOT}/dotfiles/npm/.npmrc" ]]; then
-    symlink_file "${PROJECT_ROOT}/dotfiles/npm/.npmrc" "${HOME}/.npmrc"
+    if [[ "$IS_WORK" == true ]]; then
+        keep_or_copy "${PROJECT_ROOT}/dotfiles/npm/.npmrc" "${HOME}/.npmrc"
+    elif [[ -e "${HOME}/.npmrc" && ! -L "${HOME}/.npmrc" ]]; then
+        log_warn "Keeping your ~/.npmrc; for ns-bootstrap's hardening, add the lines from ${PROJECT_ROOT}/dotfiles/npm/.npmrc (ignore-scripts=true first)"
+    else
+        symlink_file "${PROJECT_ROOT}/dotfiles/npm/.npmrc" "${HOME}/.npmrc"
+    fi
 fi
 
 # Atuin config (disable sync, update checks)
 if [[ -f "${PROJECT_ROOT}/dotfiles/atuin/config.toml" ]]; then
     mkdir -p "${HOME}/.config/atuin"
-    symlink_file "${PROJECT_ROOT}/dotfiles/atuin/config.toml" "${HOME}/.config/atuin/config.toml"
+    link_dotfile "${PROJECT_ROOT}/dotfiles/atuin/config.toml" "${HOME}/.config/atuin/config.toml"
 fi
 
 # pip: refuse installs outside a virtualenv for every process that runs pip,
@@ -602,7 +656,11 @@ if [[ -f "${PROJECT_ROOT}/dotfiles/pip/pip.conf" ]]; then
         log_warn "Keeping your ${PIP_CONF_DIR}/pip.conf; add 'require-virtualenv = true' under [global] to refuse installs outside a virtualenv"
     else
         mkdir -p "$PIP_CONF_DIR"
-        symlink_file "${PROJECT_ROOT}/dotfiles/pip/pip.conf" "${PIP_CONF_DIR}/pip.conf"
+        if [[ "$IS_WORK" == true ]]; then
+            keep_or_copy "${PROJECT_ROOT}/dotfiles/pip/pip.conf" "${PIP_CONF_DIR}/pip.conf"
+        else
+            symlink_file "${PROJECT_ROOT}/dotfiles/pip/pip.conf" "${PIP_CONF_DIR}/pip.conf"
+        fi
     fi
     if [[ "$OS" == "macos" && -d "${HOME}/Library/Application Support/pip" ]]; then
         log_warn "pip reads ~/Library/Application Support/pip/pip.conf on this Mac, so ${PIP_CONF_DIR}/pip.conf has no effect"
@@ -633,6 +691,14 @@ bash "${PROJECT_ROOT}/install/common/sync-git-pins.sh"
 if [[ "$OS" == "ubuntu" ]] && [[ "$SHELL" != */zsh ]]; then
     log_info "Setting zsh as default shell (takes effect on next login)..."
     sudo usermod -s /usr/bin/zsh "$USER"
+fi
+
+# The work profile stops here until its secrets and git-hook handling exist.
+if [[ "$IS_WORK" == true ]]; then
+    echo ""
+    log_info "Work profile: packages, shell setup and dotfiles done."
+    log_warn "Stopping before secrets and git hooks: they are not handled for the work profile yet."
+    exit 0
 fi
 
 # === Step 8: Initialize Secrets ===
