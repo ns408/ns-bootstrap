@@ -18,6 +18,10 @@ get_secret "homebrew/github-token"
 set_secret "homebrew/github-token" "ghp_your_token_here"
 ```
 
+### Work profile
+
+On a Mac set up with the work profile, `bootstrap-secrets.sh` hands over to `work-secrets.sh`, which sets up the work git identity only: name, email and signing (none, an SSH key file, 1Password or GPG). It writes `~/.config/ns-bootstrap/gitconfig`, includes it from `~/.config/git/config`, and never writes `~/.gitconfig`. 1Password is optional there (`NS_BOOTSTRAP_SECRETS_PROVIDER`), and the vault and account are settings (`NS_BOOTSTRAP_OP_VAULT`, default `Personal`; `NS_BOOTSTRAP_OP_ACCOUNT`) on both paths. Every value can come from the environment or `~/.config/ns-bootstrap/settings`, so `./secrets/work-secrets.sh --yes` runs without prompts. See [docs/settings.md](../docs/settings.md).
+
 ---
 
 ## Storage Strategy

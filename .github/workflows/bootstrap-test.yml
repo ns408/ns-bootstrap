@@ -251,6 +251,66 @@ jobs:
           fi
           echo "The pin change was applied by the next shell, once."
 
+  # A real work install on a Mac made to look company-managed: an IT-style
+  # ~/.zshrc, ~/.npmrc and ~/.gitconfig before the run, and checks that each
+  # survives while the work setup still takes effect.
+  macos-work:
+    name: macOS (work)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Company-style files
+        run: |
+          printf '# Managed by IT\nexport HTTPS_PROXY=http://proxy.example:8080\nexport EDITOR=nano\n' > ~/.zshrc
+          printf 'registry=https://npm.example.com/\n' > ~/.npmrc
+          printf '[credential]\n\thelper = company-helper\n' > ~/.gitconfig
+          cp ~/.zshrc ~/.npmrc ~/.gitconfig "$RUNNER_TEMP/"
+
+      - name: Run bootstrap (work)
+        env:
+          NS_BOOTSTRAP_GIT_NAME: Example Person
+          NS_BOOTSTRAP_GIT_EMAIL: person@work.example.com
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./install/bootstrap.sh --profile work --yes
+
+      - name: The company's files survive
+        run: |
+          tail -n 3 ~/.zshrc | diff "$RUNNER_TEMP/.zshrc" -
+          [ "$(head -n 1 ~/.zshrc)" = "# >>> ns-bootstrap >>>" ]
+          diff "$RUNNER_TEMP/.npmrc" ~/.npmrc
+          diff "$RUNNER_TEMP/.gitconfig" ~/.gitconfig
+
+      - name: The work setup takes effect
+        run: |
+          set -x
+          [ "$(zsh -l -i -c 'echo $EDITOR' 2>/dev/null | tail -n 1)" = nano ]
+          [ "$(zsh -l -i -c 'echo $UV_PYTHON_DOWNLOADS' 2>/dev/null | tail -n 1)" = never ]
+          [ "$(git config --get user.email)" = person@work.example.com ]
+          [ "$(git config --get credential.helper)" = company-helper ]
+          [ "$(git config --get core.hooksPath)" = "$HOME/.config/git/hooks" ]
+          brew analytics state | grep -qi disabled
+          [ ! -e ~/Library/LaunchAgents/com.ns-bootstrap.update-daily.plist ]
+          for f in gitleaks gh git-lfs starship atuin mise uv; do command -v "$f"; done
+
+      - name: A company repo's own hooks still run
+        run: |
+          git init -q "$RUNNER_TEMP/repo" && cd "$RUNNER_TEMP/repo"
+          printf '#!/bin/sh\necho "Change-Id: I123" >> "$1"\n' > .git/hooks/commit-msg
+          chmod +x .git/hooks/commit-msg
+          git commit -q --allow-empty -m "subject"
+          git log -1 --format=%B | grep -qx "Change-Id: I123"
+
+      - name: A second run changes nothing
+        env:
+          NS_BOOTSTRAP_GIT_NAME: Example Person
+          NS_BOOTSTRAP_GIT_EMAIL: person@work.example.com
+        run: |
+          sum() { cat ~/.zshrc ~/.zprofile ~/.npmrc ~/.gitconfig ~/.config/git/config ~/.config/ns-bootstrap/gitconfig | shasum; }
+          before=$(sum)
+          ./install/bootstrap.sh --profile work --yes
+          [ "$(sum)" = "$before" ]
+
   macos-smoke:
     name: macOS Smoke Test
     runs-on: macos-latest

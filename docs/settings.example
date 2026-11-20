@@ -1,0 +1,20 @@
+# ~/.config/ns-bootstrap/settings
+# Copy to ~/.config/ns-bootstrap/settings and uncomment what you need.
+# KEY=value per line; the environment overrides this file. See docs/settings.md.
+
+# --- Bootstrap and updates ---
+# NS_BOOTSTRAP_DAILY_UPDATE=off
+# NS_BOOTSTRAP_DAILY_SCOPE=formulae
+# NS_BOOTSTRAP_BREWFILE_LOCAL=~/company/Brewfile
+# HOMEBREW_NO_ANALYTICS=1
+
+# --- 1Password ---
+# NS_BOOTSTRAP_OP_VAULT=Employee
+# NS_BOOTSTRAP_OP_ACCOUNT=my-company.1password.com
+
+# --- Work git identity (work profile) ---
+# NS_BOOTSTRAP_SECRETS_PROVIDER=none
+# NS_BOOTSTRAP_GIT_NAME="Your Name"
+# NS_BOOTSTRAP_GIT_EMAIL=you@company.example
+# NS_BOOTSTRAP_GIT_SIGNING=ssh-file
+# NS_BOOTSTRAP_GIT_SIGNING_KEY=~/.ssh/id_ed25519.pub

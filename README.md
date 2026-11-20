@@ -6,6 +6,7 @@ Cross-platform system bootstrap for macOS and Ubuntu 24.04, both using zsh.
 
 - [Quick Start](#quick-start)
 - [Profiles](#profiles)
+- [Work Profile](#work-profile)
 - [Architecture](#architecture)
 - [Structure](#structure)
 - [Documentation](#documentation)
@@ -37,6 +38,38 @@ An unknown option or profile name stops with exit status 2 before anything chang
 | **minimal** | Core CLI tools, modern replacements (ripgrep, fd, fzf, bat, zoxide), browsers, utilities |
 | **developer** | Minimal + languages (Python, Go, Ruby), Docker, OrbStack, AWS CLI, dev tools |
 | **cloud-engineer** | Developer + Terraform, Azure CLI, Kubernetes, security tools, Wireshark |
+| **work** | A company-managed Mac (macOS only): open-source command-line tools only, keeping the company's own settings. See [Work Profile](#work-profile). |
+
+Settings that adjust any profile are listed in [docs/settings.md](docs/settings.md).
+
+## Work Profile
+
+For a Mac your employer manages. It installs nothing personal and nothing that needs a business licence, and it moves, replaces or deletes none of the files IT may have set up.
+
+**Before the first run**
+
+- Ask IT whether you may run your own Homebrew. The work profile does not install Homebrew (that means running its install script from the internet): install it from the signed `.pkg` on Homebrew's GitHub releases page, or let IT provide it. If Homebrew belongs to another account, the run stops without changing anything; `./install/bootstrap.sh --dotfiles-only --profile work` then sets up the shell and git only.
+- Run `./install/bootstrap.sh --profile work --dry-run` and read it. It lists each file and what would happen to it, and names the variables and aliases set both by ns-bootstrap and by the shell files already on the Mac, with which one wins (never their values).
+
+**What it does**
+
+| | |
+|---|---|
+| Packages | `packages/Brewfile.work`: 18 open-source formulae from homebrew/core (git, gh, gitleaks, pre-commit, git-lfs, the modern CLI tools, mise, uv). No casks, App Store apps, taps, messaging, VPN or scanning tools. Add the company's preferred apps with `NS_BOOTSTRAP_BREWFILE_LOCAL`. |
+| `~/.zshrc`, `~/.zprofile` | One marked block at the top sources ns-bootstrap's; the lines already there run after it, so where both set something, the company's wins. |
+| `~/.npmrc`, `pip.conf` | Kept if present; otherwise ns-bootstrap's is copied in, as a file you own. |
+| Other dotfiles | Kept if present; otherwise linked. |
+| Git identity | The work name, email and signing (none, an SSH key file, 1Password or GPG) go in `~/.config/ns-bootstrap/gitconfig`, included from `~/.config/git/config`. `~/.gitconfig` is never written, and git reads it after, so IT's proxy, CA and credential settings win. 1Password is optional. |
+| Git hooks | Set in `~/.config/git/config`, and each repository's own hooks and Git LFS's still run. If IT has set `core.hooksPath`, it is left alone. |
+| Updates | No daily agent, no analytics; `update-my-system` upgrades formulae only. |
+
+Every file that changes is backed up to `~/.dotfiles-backup/<timestamp>/` first. A second run changes nothing, and the Mac is remembered as work, so a plain `./install/bootstrap.sh` stays on it.
+
+**Undo it**
+
+1. Delete the block between `# >>> ns-bootstrap >>>` and `# <<< ns-bootstrap <<<` in `~/.zshrc` and `~/.zprofile`.
+2. In `~/.config/git/config`, remove `core.hooksPath`, `ns-bootstrap.chainRepoHooks` and the `include.path` for `~/.config/ns-bootstrap/gitconfig`.
+3. Restore anything else from `~/.dotfiles-backup/`, and delete `~/.config/ns-bootstrap/`.
 
 ## Architecture
 
@@ -260,7 +293,7 @@ SUBNET=10.0.0.0/24 bash install/ubuntu/install-remote-desktop.sh  # override sub
 
 ## Breaking Changes
 
-This is a personal setup, public for reference, with no compatibility promise: if you depend on it, fork it or pin a commit. Changes that alter an already-bootstrapped machine migrate it automatically when bootstrap runs again, never overwrite configuration you own, and are marked **Breaking** in their pull request.
+This is a personal setup, public for reference, with no compatibility promise: if you depend on it, fork it or pin a commit. Changes that alter an already-bootstrapped machine migrate it automatically when bootstrap runs again, never overwrite configuration you own, and are marked **Breaking** in their pull request. The work profile never replaces `~/.zshrc`, `~/.zprofile`, `~/.npmrc`, `pip.conf` or `~/.gitconfig`; it adds a marked block, an include line, or a copy you own.
 
 ## License
 

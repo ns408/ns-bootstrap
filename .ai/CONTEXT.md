@@ -8,7 +8,8 @@ It manages dotfiles, shell configuration, package installation, and secrets.
 - Shell scripts target zsh on both macOS and Ubuntu
 - Secrets are managed via 1Password CLI (macOS) or pass (Ubuntu) — never committed
 - Config files use `${PLACEHOLDER}` template variables processed by `secrets/bootstrap-secrets.sh`
-- Brewfiles are split by profile: minimal, developer, cloud-engineer
+- Brewfiles are split by profile: minimal, developer, cloud-engineer, and work (a company-managed Mac; open-source formulae only, keeps the company's files: see README "Work Profile")
+- Settings: environment, then `~/.config/ns-bootstrap/settings`, then the profile default; all listed in `docs/settings.md`
 - Modern CLI replacements are preferred (ripgrep, fd, bat, eza, zoxide, atuin)
 
 ## Structure
