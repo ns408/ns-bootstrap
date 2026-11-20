@@ -146,6 +146,10 @@ commit() {                 # MESSAGE
     git config --global ns-bootstrap.chainRepoHooks true
     rm -rf .git/hooks
     ln -s "$HOOKS" .git/hooks
-    run timeout 20 git commit -q --allow-empty -m subject
+    # A loop would be hooks starting hooks, so after 10 seconds the whole
+    # process group goes. perl, as older macOS has no timeout(1).
+    run perl -e '$pid = fork; if (!$pid) { setpgrp(0, 0); exec @ARGV }
+        $SIG{ALRM} = sub { kill "KILL", -$pid; exit 124 }; alarm 10;
+        waitpid($pid, 0); exit($? >> 8)' git commit -q --allow-empty -m subject
     [[ "$status" -eq 0 ]]
 }
