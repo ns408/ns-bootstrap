@@ -53,6 +53,7 @@ done
 
 # Source shared library
 source "${SCRIPT_DIR}/lib/common.sh"
+source "${SCRIPT_DIR}/lib/dotfiles.sh"
 
 echo ""
 echo -e "${BOLD}╔═══════════════════════════════════════╗${NC}"
@@ -111,7 +112,6 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         echo ""
         echo "Would symlink:"
         for f in .zshrc .zprofile .vimrc .inputrc .gitignore_global .tmux.conf .config/starship.toml .npmrc .config/atuin/config.toml .config/pip/pip.conf; do
-            src="${PROJECT_ROOT}/dotfiles"
             echo "  ~/${f}"
         done
         echo ""
@@ -367,41 +367,13 @@ fi
 # === Step 7: Symlink Dotfiles ===
 log_step "Step 6: Symlinking dotfiles..."
 
-# Backup directory for this run (created on first backup)
+# Backup directory for this run (created on first backup). symlink_file
+# (install/lib/dotfiles.sh) reads these and updates BACKUP_CREATED.
+# shellcheck disable=SC2034
 BACKUP_DIR="${HOME}/.dotfiles-backup/$(date +%Y%m%d%H%M%S)"
+# shellcheck disable=SC2034
 BACKUP_CREATED=false
 LINKS_CHANGED=0
-
-symlink_file() {
-    local src="$1"
-    local dest="$2"
-
-    # Skip if symlink already points to correct target
-    if [[ -L "$dest" ]] && [[ "$(readlink "$dest")" == "$src" ]]; then
-        log_info "Already linked: ${dest} -> ${src}"
-        return 0
-    fi
-
-    if [[ -e "$dest" ]] && [[ ! -L "$dest" ]]; then
-        if [[ "$BACKUP_CREATED" == false ]]; then
-            mkdir -p "$BACKUP_DIR"
-            BACKUP_CREATED=true
-            log_info "Backup directory: ${BACKUP_DIR}"
-        fi
-        local backup_name
-        backup_name=$(basename "$dest")
-        log_info "Backing up existing ${dest} -> ${BACKUP_DIR}/${backup_name}"
-        mv "$dest" "${BACKUP_DIR}/${backup_name}"
-    fi
-
-    if [[ -L "$dest" ]]; then
-        rm "$dest"
-    fi
-
-    ln -s "$src" "$dest"
-    LINKS_CHANGED=$((LINKS_CHANGED + 1))
-    log_info "Linked: ${dest} -> ${src}"
-}
 
 # Shell configs
 if [[ "$OS" == "macos" ]]; then
