@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Global post-commit hook: ns-bootstrap adds nothing here. It exists so that, with
+# ns-bootstrap.chainRepoHooks true, the repository's own post-commit hook (and Git
+# LFS's, where it has one) still runs under the global core.hooksPath.
+# Installed by ns-bootstrap; see lib/chain.sh.
+
+. "$(cd "$(dirname "$0")" && pwd)/lib/chain.sh"
+chain_repo_hook post-commit "$@"

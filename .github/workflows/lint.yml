@@ -76,6 +76,9 @@ jobs:
       - name: Run tests
         run: bats tests/
 
+      - name: Work profile dry run
+        run: ./install/bootstrap.sh --profile work --dry-run
+
   # Backstop for the local gitleaks hooks, which only cover commits made on a
   # machine that has them: not --no-verify, other machines, or edits made on
   # GitHub. Scans the whole history (small, and immune to range edge cases);

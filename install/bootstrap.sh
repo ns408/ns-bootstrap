@@ -142,6 +142,17 @@ work_brew_problem() {
     fi
 }
 
+# A hooks path set outside ns-bootstrap's own file (by IT in /etc/gitconfig or
+# ~/.gitconfig, say), or nothing.
+work_it_hooks_path() {
+    local p
+    for p in "$(git config --system --get core.hooksPath 2>/dev/null)" \
+             "$(git config --file "${HOME}/.gitconfig" --get core.hooksPath 2>/dev/null)"; do
+        [[ -n "$p" && "$p" != "${HOME}/.config/git/hooks" ]] && { echo "$p"; return 0; }
+    done
+    return 0   # nothing set: not a failure, which set -e would treat as one
+}
+
 work_dry_run() {
     local brewfile="${PROJECT_ROOT}/packages/Brewfile.work" local_file problem key
     local_file="$(ns_setting_path NS_BOOTSTRAP_BREWFILE_LOCAL work)"
@@ -225,7 +236,15 @@ work_dry_run() {
         echo "  ~/.gitconfig already sets user.email, so that address, not the work one, is used."
     fi
     echo ""
-    echo "Not yet handled for work: git hooks and scheduled updates. A real run stops before them."
+    local hooks
+    hooks="$(work_it_hooks_path)"
+    if [[ -n "$hooks" ]]; then
+        echo "Git hooks: core.hooksPath is already ${hooks}; left alone, so ns-bootstrap's are not installed."
+    else
+        echo "Git hooks: ns-bootstrap's, in ~/.config/git/hooks, set in ~/.config/git/config;"
+        echo "  each repository's own hooks and Git LFS's run too (ns-bootstrap.chainRepoHooks)."
+    fi
+    echo "Daily update agent: $(ns_setting NS_BOOTSTRAP_DAILY_UPDATE work) (scope: $(ns_setting NS_BOOTSTRAP_DAILY_SCOPE work))"
     echo ""
     echo -e "${GREEN}No changes were made.${NC}"
 }
@@ -313,7 +332,8 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         echo "  - Source ns-bootstrap from the top of ~/.zshrc and ~/.zprofile, keeping their lines"
         echo "  - Add the other dotfiles only where you have none (see --dry-run)"
         echo "  - Set up the work git identity in ~/.config/ns-bootstrap/gitconfig, leaving ~/.gitconfig alone"
-        echo "  - Stop before git hooks and scheduled updates (not yet handled for work)"
+        echo "  - Install git hooks via ~/.config/git/config, running each repository's own too,"
+        echo "    unless IT has set a hooks path"
     else
         echo "  - Install ${PROFILE} packages via ${PKG_MGR}"
         echo "  - Install modern CLI tools (ripgrep, fd, fzf, bat, zoxide, etc.)"
@@ -518,23 +538,39 @@ else
     [[ "$IS_WORK" == true ]] && remember_work
 fi
 
-# Global git hooks set core.hooksPath for every repository, which stops a
-# company repo's own hooks (Git LFS among them) from running; the work
-# profile's version, which runs them too, comes later. safe.directory serves
-# the two-account setup, which a work Mac does not have.
+# === Global git hooks (secrets scan + AI trailer stripping) ===
+HOOKS_SRC="${PROJECT_ROOT}/dotfiles/git/hooks"
+HOOKS_DEST="${HOME}/.config/git/hooks"
+install_global_hooks() {
+    mkdir -p "$HOOKS_DEST"
+    # -R so the lib/ subdir (shared helpers) is copied, not just top-level files.
+    cp -R "$HOOKS_SRC"/. "$HOOKS_DEST/"
+    # Only the hook entrypoints need +x; sourced helpers under lib/ do not.
+    find "$HOOKS_DEST" -maxdepth 1 -type f -exec chmod +x {} +
+}
+
 if [[ "$IS_WORK" == true ]]; then
-    log_info "Work profile: leaving git's global hooks and safe.directory alone"
+    # On a work Mac the hooks path goes in ~/.config/git/config, so
+    # ~/.gitconfig stays IT's, and each repository's own hooks and Git LFS's
+    # run too (ns-bootstrap.chainRepoHooks). A hooks path IT already set wins
+    # over ours anyway, so it is left alone. No safe.directory: that serves
+    # the two-account setup.
+    GIT_XDG="${XDG_CONFIG_HOME:-${HOME}/.config}/git/config"
+    it_hooks="$(work_it_hooks_path)"
+    if [[ -n "$it_hooks" ]]; then
+        log_warn "core.hooksPath is already set to ${it_hooks} (by IT, most likely); leaving it, so ns-bootstrap's git hooks are not installed."
+    elif [[ -d "$HOOKS_SRC" ]]; then
+        install_global_hooks
+        mkdir -p "$(dirname "$GIT_XDG")"
+        git config --file "$GIT_XDG" core.hooksPath "$HOOKS_DEST"
+        if [[ -z "$(git config --global --get ns-bootstrap.chainRepoHooks 2>/dev/null)" ]]; then
+            git config --file "$GIT_XDG" ns-bootstrap.chainRepoHooks true
+        fi
+        log_info "Global git hooks installed at ${HOOKS_DEST}, set in ${GIT_XDG}; repositories' own hooks run too"
+    fi
 else
-    # === Global git hooks (secrets scan + AI trailer stripping) ===
-    HOOKS_SRC="${PROJECT_ROOT}/dotfiles/git/hooks"
-    HOOKS_DEST="${HOME}/.config/git/hooks"
     if [[ -d "$HOOKS_SRC" ]]; then
-        mkdir -p "$HOOKS_DEST"
-        # -R so the lib/ subdir (shared helpers) is copied, not just top-level files.
-        cp -R "$HOOKS_SRC"/. "$HOOKS_DEST/"
-        # Only the hook entrypoints need +x; sourced helpers under lib/ do not.
-        chmod +x "$HOOKS_DEST"/pre-commit "$HOOKS_DEST"/pre-push \
-                 "$HOOKS_DEST"/commit-msg "$HOOKS_DEST"/prepare-commit-msg
+        install_global_hooks
         git config --global core.hooksPath "$HOOKS_DEST"
         log_info "Global git hooks installed at ${HOOKS_DEST}"
     fi
@@ -662,7 +698,9 @@ if [[ -f "${PROJECT_ROOT}/dotfiles/pip/pip.conf" ]]; then
     else
         PIP_CONF_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/pip"
     fi
-    if [[ -e "${PIP_CONF_DIR}/pip.conf" && ! -L "${PIP_CONF_DIR}/pip.conf" ]]; then
+    if [[ "$IS_WORK" == true ]] && cmp -s "${PROJECT_ROOT}/dotfiles/pip/pip.conf" "${PIP_CONF_DIR}/pip.conf"; then
+        log_info "Keeping ${PIP_CONF_DIR}/pip.conf (ns-bootstrap's copy, yours to edit)"
+    elif [[ -e "${PIP_CONF_DIR}/pip.conf" && ! -L "${PIP_CONF_DIR}/pip.conf" ]]; then
         log_warn "Keeping your ${PIP_CONF_DIR}/pip.conf; add 'require-virtualenv = true' under [global] to refuse installs outside a virtualenv"
     else
         mkdir -p "$PIP_CONF_DIR"
@@ -703,8 +741,8 @@ if [[ "$OS" == "ubuntu" ]] && [[ "$SHELL" != */zsh ]]; then
     sudo usermod -s /usr/bin/zsh "$USER"
 fi
 
-# The work profile sets up its git identity (secrets/work-secrets.sh), then
-# stops until its git-hook handling exists.
+# === Step 8: Initialize Secrets ===
+# The work profile's is its git identity only (secrets/work-secrets.sh).
 if [[ "$IS_WORK" == true ]]; then
     log_step "Step 7: Work git identity..."
     WORK_SECRETS="${PROJECT_ROOT}/secrets/work-secrets.sh"
@@ -722,29 +760,24 @@ if [[ "$IS_WORK" == true ]]; then
             log_info "Skipped. Run later: ${WORK_SECRETS}"
         fi
     fi
-    echo ""
-    log_info "Work profile: packages, shell setup, dotfiles and git identity done."
-    log_warn "Stopping before git hooks and scheduled updates: they are not handled for the work profile yet."
-    exit 0
-fi
-
-# === Step 8: Initialize Secrets ===
-log_step "Step 7: Initializing secrets system..."
-
-SECRETS_BOOTSTRAP="${PROJECT_ROOT}/secrets/bootstrap-secrets.sh"
-if [[ -f "$SECRETS_BOOTSTRAP" ]]; then
-    if [[ "$AUTO_CONFIRM" == true ]]; then
-        log_info "Skipping secrets in non-interactive mode. Run later: ${SECRETS_BOOTSTRAP}"
-    else
-        read -p "Run secrets bootstrap now? [y/N]: " run_secrets
-        if [[ "${run_secrets:-n}" == "y" ]]; then
-            bash "$SECRETS_BOOTSTRAP"
-        else
-            log_info "Skipped. Run later: ${SECRETS_BOOTSTRAP}"
-        fi
-    fi
 else
-    log_warn "Secrets bootstrap not found"
+    log_step "Step 7: Initializing secrets system..."
+
+    SECRETS_BOOTSTRAP="${PROJECT_ROOT}/secrets/bootstrap-secrets.sh"
+    if [[ -f "$SECRETS_BOOTSTRAP" ]]; then
+        if [[ "$AUTO_CONFIRM" == true ]]; then
+            log_info "Skipping secrets in non-interactive mode. Run later: ${SECRETS_BOOTSTRAP}"
+        else
+            read -p "Run secrets bootstrap now? [y/N]: " run_secrets
+            if [[ "${run_secrets:-n}" == "y" ]]; then
+                bash "$SECRETS_BOOTSTRAP"
+            else
+                log_info "Skipped. Run later: ${SECRETS_BOOTSTRAP}"
+            fi
+        fi
+    else
+        log_warn "Secrets bootstrap not found"
+    fi
 fi
 
 # === Step 9: Install Scheduled Updates ===
@@ -892,6 +925,10 @@ echo "Dotfiles:"
 for f in ~/.zshrc ~/.zprofile ~/.vimrc ~/.inputrc ~/.gitignore_global ~/.tmux.conf ~/.config/starship.toml ~/.npmrc; do
     if [[ -L "$f" ]]; then
         log_info "  ✓ ${f} -> $(readlink "$f")"
+    elif [[ "$IS_WORK" == true && -f "$f" ]] && grep -qxF "$NS_BLOCK_BEGIN" "$f"; then
+        log_info "  ✓ ${f} (yours, sourcing ns-bootstrap)"
+    elif [[ "$IS_WORK" == true && -e "$f" ]]; then
+        log_info "  ✓ ${f} (yours, kept)"
     elif [[ -e "$f" ]]; then
         log_warn "  ~ ${f} (exists but not a symlink)"
     fi

@@ -22,6 +22,9 @@ else
     echo "         install it with: brew install gitleaks" >&2
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$SCRIPT_DIR/lib/chain.sh"
+
 # 2. Run the repo's pre-commit framework if configured. This lets per-repo hooks
 #    run without each repo calling `pre-commit install` (which cannot coexist
 #    with a global core.hooksPath). Fail-open: skip with a NOTE if not runnable.
@@ -38,5 +41,8 @@ if [ -f ".pre-commit-config.yaml" ]; then
         echo "NOTE: .pre-commit-config.yaml present but pre-commit not runnable here; repo hooks skipped." >&2
     fi
 fi
+
+# 3. The repository's own pre-commit hook, with ns-bootstrap.chainRepoHooks.
+chain_repo_hook pre-commit "$@" || exit $?
 
 exit 0

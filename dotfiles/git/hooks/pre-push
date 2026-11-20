@@ -5,7 +5,9 @@
 #      stay private (blocks), in the repositories it decides are in scope;
 #   3. OSV-Scanner and Trivy report known vulnerabilities and misconfigurations
 #      in the tree being pushed, in pinned containers where Docker is running
-#      (report only, during the trial).
+#      (report only, during the trial; off with ns-bootstrap.pushScanners false);
+#   4. with ns-bootstrap.chainRepoHooks true, the repository's own pre-push
+#      hook and Git LFS's run, given the same lines (only if 1 and 2 passed).
 #
 # Installed by ns-bootstrap — applies to all repositories.
 # To bypass for a single push (only if a false positive): git push --no-verify
@@ -28,13 +30,14 @@ root=$(git rev-parse --show-toplevel)
 # clone has never fetched (someone pushed since) cannot bound a range: gitleaks
 # then scans nothing and exits 0. Treat that ref as new instead, so every commit
 # not already on a known remote is checked.
+input=$(cat)
 lines=$(while read -r local_ref local_sha remote_ref remote_sha; do
     [ -z "${local_sha:-}" ] && continue
     if [ "${remote_sha:-$zero}" != "$zero" ] && ! git cat-file -e "${remote_sha}^{commit}" 2>/dev/null; then
         remote_sha=$zero
     fi
     echo "$local_ref $local_sha $remote_ref $remote_sha"
-done)
+done <<< "$input")
 
 # --- 1. Secrets -------------------------------------------------------------
 while read -r _ local_sha _ remote_sha; do
@@ -134,6 +137,11 @@ refresh_in_background() {  # $1: the pushed commit
 }
 
 scanned=""
+scan_lines=$lines
+if [ "$(git config --bool ns-bootstrap.pushScanners 2>/dev/null)" = false ]; then
+    echo "scanners: off (ns-bootstrap.pushScanners is false)" >&2
+    scan_lines=""
+fi
 while read -r _ local_sha _ _; do
     [ -z "${local_sha:-}" ] && continue
     [ "$local_sha" = "$zero" ] && continue
@@ -236,6 +244,14 @@ while read -r _ local_sha _ _; do
         refresh_in_background "$local_sha"
         echo "scanners: refreshing images and databases in the background" >&2
     fi
-done <<< "$lines"
+done <<< "$scan_lines"
+
+# --- 4. The repository's own pre-push hook, and Git LFS's --------------------
+# Only for a push the checks above let through, so LFS uploads nothing for a
+# push that will not happen.
+if [ "$status" -eq 0 ]; then
+    . "$(cd "$(dirname "$0")" && pwd)/lib/chain.sh"
+    printf '%s\n' "$input" | chain_repo_hook pre-push "$@" || status=1
+fi
 
 exit $status
