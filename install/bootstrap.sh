@@ -20,34 +20,49 @@ RELINK=false
 DRY_RUN=false
 AUTO_CONFIRM=false
 PROFILE=""
-_next_is_profile=false
-for arg in "$@"; do
-    if [[ "$_next_is_profile" == true ]]; then
-        PROFILE="$arg"
-        _next_is_profile=false
-        continue
-    fi
-    case "$arg" in
+PROFILES="minimal developer cloud-engineer"
+
+usage() {
+    echo "Usage: $0 [--dotfiles-only] [--relink] [--dry-run] [--profile NAME] [--yes]"
+    echo ""
+    echo "  --dotfiles-only   Skip package installation (for non-admin accounts)"
+    echo "  --relink          Re-point dotfile symlinks and machine config, then exit"
+    echo "                    (run from each account after moving the repo)"
+    echo "  --dry-run         Preview what would be installed (no changes made)"
+    echo "  --profile NAME    Set profile: ${PROFILES// /, }"
+    echo "  --yes, -y         Skip confirmation prompts (for CI/automation)"
+}
+
+# A bad command line stops here, with status 2, before anything is touched:
+# a typo such as --dryrun must never fall through to a real install.
+usage_error() {
+    echo "Error: $1" >&2
+    echo "" >&2
+    usage >&2
+    exit 2
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
         --dotfiles-only) DOTFILES_ONLY=true ;;
         # Relinking is a subset of dotfiles-only: it reuses that flag to skip
         # package installation, then exits once the symlinks are re-pointed.
         --relink) RELINK=true; DOTFILES_ONLY=true ;;
         --dry-run) DRY_RUN=true ;;
         --yes|-y) AUTO_CONFIRM=true ;;
-        --profile) _next_is_profile=true ;;
-        --help|-h)
-            echo "Usage: $0 [--dotfiles-only] [--relink] [--dry-run] [--profile NAME] [--yes]"
-            echo ""
-            echo "  --dotfiles-only   Skip package installation (for non-admin accounts)"
-            echo "  --relink          Re-point dotfile symlinks and machine config, then exit"
-            echo "                    (run from each account after moving the repo)"
-            echo "  --dry-run         Preview what would be installed (no changes made)"
-            echo "  --profile NAME    Set profile: minimal, developer, cloud-engineer"
-            echo "  --yes, -y         Skip confirmation prompts (for CI/automation)"
-            exit 0
+        --profile)
+            [[ $# -ge 2 && "$2" != -* ]] || usage_error "--profile needs a name: ${PROFILES// /, }"
+            PROFILE="$2"
+            shift
             ;;
+        --help|-h) usage; exit 0 ;;
+        *) usage_error "unknown option: $1" ;;
     esac
+    shift
 done
+if [[ -n "$PROFILE" && " ${PROFILES} " != *" ${PROFILE} "* ]]; then
+    usage_error "unknown profile: ${PROFILE} (choose ${PROFILES// /, })"
+fi
 # NONINTERACTIVE=1 matches Homebrew's convention
 [[ "${NONINTERACTIVE:-}" == "1" ]] && AUTO_CONFIRM=true
 
