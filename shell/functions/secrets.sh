@@ -11,7 +11,14 @@
 
 # 1Password item configuration (must match bootstrap-secrets.sh)
 _OP_ITEM_NAME="ns-bootstrap"
-_OP_VAULT="Personal"
+# The vault is a setting (NS_BOOTSTRAP_OP_VAULT, default Personal). The
+# settings file is read only when it exists, so a plain shell start pays nothing.
+_OP_VAULT="${NS_BOOTSTRAP_OP_VAULT:-}"
+if [[ -z "$_OP_VAULT" && -f "${HOME}/.config/ns-bootstrap/settings" \
+      && -f "${NS_BOOTSTRAP_DIR:-$HOME/ns-bootstrap}/install/lib/settings.sh" ]]; then
+  _OP_VAULT="$(source "${NS_BOOTSTRAP_DIR:-$HOME/ns-bootstrap}/install/lib/settings.sh" && ns_setting NS_BOOTSTRAP_OP_VAULT)"
+fi
+_OP_VAULT="${_OP_VAULT:-Personal}"
 
 # === Main Functions ===
 

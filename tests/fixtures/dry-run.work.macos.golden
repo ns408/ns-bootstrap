@@ -30,6 +30,10 @@ Settings (environment, then @HOME@/.config/ns-bootstrap/settings, then the work 
   NS_BOOTSTRAP_DAILY_SCOPE=formulae (default)
   NS_BOOTSTRAP_BREWFILE_LOCAL= (default)
   HOMEBREW_NO_ANALYTICS=1 (default)
+  NS_BOOTSTRAP_SECRETS_PROVIDER=none (default)
+  NS_BOOTSTRAP_OP_VAULT=Personal (default)
+  NS_BOOTSTRAP_OP_ACCOUNT= (default)
+  NS_BOOTSTRAP_GIT_SIGNING=none (default)
 
 
 Dotfiles (nothing of yours is moved or replaced; a file that changes is backed up first):
@@ -48,6 +52,11 @@ Set both by ns-bootstrap and by shell files already here (names only, never valu
   none found
   (Search paths such as PATH add up and are not listed; oh-my-zsh's own aliases are not checked.)
 
-Not yet handled for work: git hooks and secrets. A real run stops before them.
+
+Git identity: the work name and email (and signing, if chosen) go in
+  ~/.config/ns-bootstrap/gitconfig, included from ~/.config/git/config.
+  ~/.gitconfig is left alone and read after it, so whatever it sets wins.
+
+Not yet handled for work: git hooks and scheduled updates. A real run stops before them.
 
 No changes were made.

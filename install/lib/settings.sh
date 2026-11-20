@@ -29,6 +29,9 @@ _ns_setting_default() {   # KEY PROFILE
         NS_BOOTSTRAP_DAILY_SCOPE:work)  echo formulae ;;
         NS_BOOTSTRAP_DAILY_SCOPE:*)     echo all ;;
         HOMEBREW_NO_ANALYTICS:work)     echo 1 ;;
+        NS_BOOTSTRAP_OP_VAULT:*)        echo Personal ;;
+        NS_BOOTSTRAP_SECRETS_PROVIDER:work) echo none ;;
+        NS_BOOTSTRAP_GIT_SIGNING:work)  echo none ;;
         *)                              echo "" ;;
     esac
 }
@@ -88,6 +91,15 @@ ns_settings_check() {     # PROFILE
                 [[ -z "$value" || -f "$value" ]] || { echo "${key} names no file: ${value}"; bad=1; } ;;
         esac
     done
+    if [[ "$profile" == work ]]; then
+        value="$(ns_setting NS_BOOTSTRAP_SECRETS_PROVIDER work)"
+        [[ "$value" == none || "$value" == 1password ]] \
+            || { echo "NS_BOOTSTRAP_SECRETS_PROVIDER must be none or 1password for work, not '${value}'"; bad=1; }
+        value="$(ns_setting NS_BOOTSTRAP_GIT_SIGNING work)"
+        case "$value" in none|ssh-file|1password|gpg) ;;
+            *) echo "NS_BOOTSTRAP_GIT_SIGNING must be none, ssh-file, 1password or gpg, not '${value}'"; bad=1 ;;
+        esac
+    fi
     if [[ "$profile" == work && "$(ns_setting NS_BOOTSTRAP_EXTRA_APPS work)" == on ]]; then
         echo "NS_BOOTSTRAP_EXTRA_APPS cannot be on for the work profile: those apps are personal or need a business licence"
         bad=1

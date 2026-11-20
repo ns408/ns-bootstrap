@@ -55,3 +55,48 @@ process_template() {
 
     log_info "Created: $output_file"
 }
+
+# --- Work profile git config ---------------------------------------------
+#
+# The work file is the personal template less what a company Mac decides for
+# itself or ns-bootstrap sets per mode: identity and signing ([user], [gpg],
+# commit and tag gpgsign), the credential helper, the global hooks path, and
+# the includeIf that splits personal from work. Built from the template, not
+# copied, so the shared settings cannot drift apart. Section-header comments
+# are dropped, as they would label sections that are gone.
+work_gitconfig_body() {    # TEMPLATE
+    awk '
+        /^\[/ { sec = $0; drop = (sec ~ /^\[(user|credential|gpg)( |\])/ || sec ~ /^\[includeIf /) }
+        drop { next }
+        /^# ─── / { next }
+        sec == "[core]" && $1 == "hooksPath" { next }
+        (sec == "[commit]" || sec == "[tag]") && $1 == "gpgsign" { next }
+        { print }' "$1" | cat -s
+}
+
+_git_quote() {             # VALUE: a double-quoted git config value
+    local v="${1//\\/\\\\}"
+    printf '"%s"' "${v//\"/\\\"}"
+}
+
+# Prints the whole work file. Uses GIT_NAME_WORK, GIT_EMAIL_WORK,
+# WORK_SIGNING (none, ssh-file, 1password or gpg), WORK_SIGNING_KEY and, for
+# 1password, OP_SSH_SIGN_PATH.
+work_gitconfig() {         # TEMPLATE
+    local body
+    printf '%s\n' "# ns-bootstrap work git settings, included from ~/.config/git/config." \
+        "# Written by secrets/work-secrets.sh; run it again to change them." \
+        "# ~/.gitconfig is read after this file, so anything it sets wins." ""
+    printf '[user]\n    name = %s\n    email = %s\n' "$(_git_quote "$GIT_NAME_WORK")" "$(_git_quote "$GIT_EMAIL_WORK")"
+    if [[ "${WORK_SIGNING:-none}" != none ]]; then
+        printf '    signingkey = %s\n\n' "$(_git_quote "$WORK_SIGNING_KEY")"
+        case "$WORK_SIGNING" in
+            gpg) printf '[gpg]\n    format = openpgp\n\n' ;;
+            *)   printf '[gpg]\n    format = ssh\n\n' ;;
+        esac
+        [[ "$WORK_SIGNING" == 1password ]] && printf '[gpg "ssh"]\n    program = %s\n\n' "$(_git_quote "$OP_SSH_SIGN_PATH")"
+        printf '[commit]\n    gpgsign = true\n\n[tag]\n    gpgsign = true\n'
+    fi
+    body="$(work_gitconfig_body "$1")"
+    printf '\n%s\n' "${body//\$\{HOME\}/$HOME}"
+}

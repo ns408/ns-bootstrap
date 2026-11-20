@@ -173,7 +173,8 @@ work_dry_run() {
     fi
     echo ""
     echo "Settings (environment, then ${NS_BOOTSTRAP_SETTINGS_FILE}, then the work default):"
-    for key in NS_BOOTSTRAP_EXTRA_APPS NS_BOOTSTRAP_DAILY_UPDATE NS_BOOTSTRAP_DAILY_SCOPE NS_BOOTSTRAP_BREWFILE_LOCAL HOMEBREW_NO_ANALYTICS; do
+    for key in NS_BOOTSTRAP_EXTRA_APPS NS_BOOTSTRAP_DAILY_UPDATE NS_BOOTSTRAP_DAILY_SCOPE NS_BOOTSTRAP_BREWFILE_LOCAL HOMEBREW_NO_ANALYTICS \
+               NS_BOOTSTRAP_SECRETS_PROVIDER NS_BOOTSTRAP_OP_VAULT NS_BOOTSTRAP_OP_ACCOUNT NS_BOOTSTRAP_GIT_SIGNING; do
         echo "  ${key}=$(ns_setting "$key" work) ($(ns_setting_source "$key" work))"
     done
     echo ""
@@ -216,7 +217,15 @@ work_dry_run() {
     fi
     echo "  (Search paths such as PATH add up and are not listed; oh-my-zsh's own aliases are not checked.)"
     echo ""
-    echo "Not yet handled for work: git hooks and secrets. A real run stops before them."
+    echo ""
+    echo "Git identity: the work name and email (and signing, if chosen) go in"
+    echo "  ~/.config/ns-bootstrap/gitconfig, included from ~/.config/git/config."
+    echo "  ~/.gitconfig is left alone and read after it, so whatever it sets wins."
+    if [[ -f "${HOME}/.gitconfig" ]] && git config --file "${HOME}/.gitconfig" --get user.email >/dev/null 2>&1; then
+        echo "  ~/.gitconfig already sets user.email, so that address, not the work one, is used."
+    fi
+    echo ""
+    echo "Not yet handled for work: git hooks and scheduled updates. A real run stops before them."
     echo ""
     echo -e "${GREEN}No changes were made.${NC}"
 }
@@ -303,7 +312,8 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         echo "  - Install the work packages (packages/Brewfile.work) via brew"
         echo "  - Source ns-bootstrap from the top of ~/.zshrc and ~/.zprofile, keeping their lines"
         echo "  - Add the other dotfiles only where you have none (see --dry-run)"
-        echo "  - Stop before secrets and git hooks (not yet handled for work)"
+        echo "  - Set up the work git identity in ~/.config/ns-bootstrap/gitconfig, leaving ~/.gitconfig alone"
+        echo "  - Stop before git hooks and scheduled updates (not yet handled for work)"
     else
         echo "  - Install ${PROFILE} packages via ${PKG_MGR}"
         echo "  - Install modern CLI tools (ripgrep, fd, fzf, bat, zoxide, etc.)"
@@ -693,11 +703,28 @@ if [[ "$OS" == "ubuntu" ]] && [[ "$SHELL" != */zsh ]]; then
     sudo usermod -s /usr/bin/zsh "$USER"
 fi
 
-# The work profile stops here until its secrets and git-hook handling exist.
+# The work profile sets up its git identity (secrets/work-secrets.sh), then
+# stops until its git-hook handling exists.
 if [[ "$IS_WORK" == true ]]; then
+    log_step "Step 7: Work git identity..."
+    WORK_SECRETS="${PROJECT_ROOT}/secrets/work-secrets.sh"
+    if [[ "$AUTO_CONFIRM" == true ]]; then
+        if [[ -n "$(ns_setting NS_BOOTSTRAP_GIT_NAME work)" && -n "$(ns_setting NS_BOOTSTRAP_GIT_EMAIL work)" ]]; then
+            bash "$WORK_SECRETS" --yes || log_warn "The work git identity was not set up; see above. Run later: ${WORK_SECRETS}"
+        else
+            log_info "Skipping the work git identity: set NS_BOOTSTRAP_GIT_NAME and NS_BOOTSTRAP_GIT_EMAIL for a run without prompts. Run later: ${WORK_SECRETS}"
+        fi
+    else
+        read -p "Set up the work git identity now? [y/N]: " run_secrets
+        if [[ "${run_secrets:-n}" == "y" ]]; then
+            bash "$WORK_SECRETS" || log_warn "The work git identity was not set up; see above. Run later: ${WORK_SECRETS}"
+        else
+            log_info "Skipped. Run later: ${WORK_SECRETS}"
+        fi
+    fi
     echo ""
-    log_info "Work profile: packages, shell setup and dotfiles done."
-    log_warn "Stopping before secrets and git hooks: they are not handled for the work profile yet."
+    log_info "Work profile: packages, shell setup, dotfiles and git identity done."
+    log_warn "Stopping before git hooks and scheduled updates: they are not handled for the work profile yet."
     exit 0
 fi
 

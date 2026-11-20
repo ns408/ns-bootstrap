@@ -24,11 +24,25 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $1"; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 source "${PROJECT_ROOT}/install/lib/template.sh"
+source "${PROJECT_ROOT}/install/lib/settings.sh"
 
-# 1Password item configuration
+# A work Mac takes its own path: the work identity only, 1Password optional,
+# and ~/.gitconfig left to IT (secrets/work-secrets.sh).
+if [[ "${1:-}" == --work || "$(ns_remembered_profile)" == work ]]; then
+    [[ "${1:-}" == --work ]] && shift
+    exec bash "${SCRIPT_DIR}/work-secrets.sh" "$@"
+fi
+
+# 1Password item configuration. The vault and account are settings
+# (NS_BOOTSTRAP_OP_VAULT, default Personal; NS_BOOTSTRAP_OP_ACCOUNT, which op
+# reads as OP_ACCOUNT).
 OP_ITEM_NAME="ns-bootstrap"
-OP_VAULT="Personal"
+OP_VAULT="$(ns_setting NS_BOOTSTRAP_OP_VAULT)"
 OP_TAG="managed:ns-bootstrap"
+if [[ -n "$(ns_setting NS_BOOTSTRAP_OP_ACCOUNT)" ]]; then
+    OP_ACCOUNT="$(ns_setting NS_BOOTSTRAP_OP_ACCOUNT)"
+    export OP_ACCOUNT
+fi
 
 echo "=== Secrets Management Bootstrap ==="
 echo ""
