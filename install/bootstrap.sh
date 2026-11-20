@@ -578,9 +578,15 @@ if [[ -f "${PROJECT_ROOT}/dotfiles/starship/starship.toml" ]]; then
     symlink_file "${PROJECT_ROOT}/dotfiles/starship/starship.toml" "${HOME}/.config/starship.toml"
 fi
 
-# npm security config
+# npm security config. A ~/.npmrc of your own (a company registry, a CA file,
+# an auth token) is kept, as pip.conf is below: replacing it would quietly
+# change where npm installs from.
 if [[ -f "${PROJECT_ROOT}/dotfiles/npm/.npmrc" ]]; then
-    symlink_file "${PROJECT_ROOT}/dotfiles/npm/.npmrc" "${HOME}/.npmrc"
+    if [[ -e "${HOME}/.npmrc" && ! -L "${HOME}/.npmrc" ]]; then
+        log_warn "Keeping your ~/.npmrc; for ns-bootstrap's hardening, add the lines from ${PROJECT_ROOT}/dotfiles/npm/.npmrc (ignore-scripts=true first)"
+    else
+        symlink_file "${PROJECT_ROOT}/dotfiles/npm/.npmrc" "${HOME}/.npmrc"
+    fi
 fi
 
 # Atuin config (disable sync, update checks)
