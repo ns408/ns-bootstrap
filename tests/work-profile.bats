@@ -170,6 +170,7 @@ normalised() {
     [[ "$output" == *"Already sourced: ${TEST_HOME}/.zshrc"* ]]
     [[ "$(cat "${TEST_HOME}/.zshrc" "${TEST_HOME}/.zprofile")" == "$before" ]]
     [[ "$(find "${TEST_HOME}/.dotfiles-backup" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')" == 1 ]]
+    [[ "$output" != *"[WARN]"* ]]
 }
 
 @test "a dotfile already there is kept on a work Mac" {

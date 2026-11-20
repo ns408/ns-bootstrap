@@ -698,7 +698,9 @@ if [[ -f "${PROJECT_ROOT}/dotfiles/pip/pip.conf" ]]; then
     else
         PIP_CONF_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/pip"
     fi
-    if [[ -e "${PIP_CONF_DIR}/pip.conf" && ! -L "${PIP_CONF_DIR}/pip.conf" ]]; then
+    if [[ "$IS_WORK" == true ]] && cmp -s "${PROJECT_ROOT}/dotfiles/pip/pip.conf" "${PIP_CONF_DIR}/pip.conf"; then
+        log_info "Keeping ${PIP_CONF_DIR}/pip.conf (ns-bootstrap's copy, yours to edit)"
+    elif [[ -e "${PIP_CONF_DIR}/pip.conf" && ! -L "${PIP_CONF_DIR}/pip.conf" ]]; then
         log_warn "Keeping your ${PIP_CONF_DIR}/pip.conf; add 'require-virtualenv = true' under [global] to refuse installs outside a virtualenv"
     else
         mkdir -p "$PIP_CONF_DIR"
