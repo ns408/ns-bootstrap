@@ -79,17 +79,47 @@ normalised() {
     [[ -z "$(find "$TEST_HOME" -mindepth 1 -maxdepth 1 ! -name stubs ! -name brew ! -name stub.log ! -name etc ! -name no-pins)" ]]
 }
 
-@test "a real work run installs Brewfile.work only, remembers work, and stops before git hooks" {
+@test "a real work run installs Brewfile.work only, remembers work, and completes" {
     bootstrap --profile work --yes
     [[ "$status" -eq 0 ]]
     [[ "$output" == *"Skipping the work git identity: set NS_BOOTSTRAP_GIT_NAME and NS_BOOTSTRAP_GIT_EMAIL"* ]]
-    [[ "$output" == *"Stopping before git hooks and scheduled updates"* ]]
+    [[ "$output" == *"=== Bootstrap Complete! ==="* ]]
     grep -qx "brew bundle --file=${ROOT}/packages/Brewfile.work --verbose" "$STUB_LOG"
     grep -qx "brew analytics off" "$STUB_LOG"
     refute_grep -E -- '--cask|brew install' "$STUB_LOG"
     refute_grep -E '^(launchctl|sudo)' "$STUB_LOG"
     [[ "$(cat "${TEST_HOME}/.config/ns-bootstrap/profile")" == work ]]
-    [[ ! -e "${TEST_HOME}/.gitconfig" && ! -e "${TEST_HOME}/.config/git" ]]
+    [[ ! -e "${TEST_HOME}/.gitconfig" ]]
+}
+
+@test "a work run sets the hooks path and chaining in ~/.config/git/config, not ~/.gitconfig" {
+    printf '[credential]\n\thelper = company-helper\n' > "${TEST_HOME}/.gitconfig"
+    before="$(cat "${TEST_HOME}/.gitconfig")"
+    bootstrap --profile work --yes
+    [[ "$status" -eq 0 ]]
+    [[ "$(git config --file "${TEST_HOME}/.config/git/config" core.hooksPath)" == "${TEST_HOME}/.config/git/hooks" ]]
+    [[ "$(git config --file "${TEST_HOME}/.config/git/config" ns-bootstrap.chainRepoHooks)" == true ]]
+    [[ -x "${TEST_HOME}/.config/git/hooks/post-checkout" && -x "${TEST_HOME}/.config/git/hooks/pre-push" ]]
+    [[ "$(cat "${TEST_HOME}/.gitconfig")" == "$before" ]]
+}
+
+@test "a hooks path IT already set is left alone, and ns-bootstrap's hooks are not installed" {
+    printf '[core]\n\thooksPath = /opt/company/git-hooks\n' > "${TEST_HOME}/.gitconfig"
+    bootstrap --profile work --dry-run
+    [[ "$output" == *"core.hooksPath is already /opt/company/git-hooks; left alone"* ]]
+    bootstrap --profile work --yes
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == *"core.hooksPath is already set to /opt/company/git-hooks"* ]]
+    [[ -z "$(git config --file "${TEST_HOME}/.config/git/config" core.hooksPath 2>/dev/null)" ]]
+    [[ ! -e "${TEST_HOME}/.config/git/hooks" ]]
+}
+
+@test "a chaining choice already made is kept" {
+    mkdir -p "${TEST_HOME}/.config/git"
+    printf '[ns-bootstrap]\n\tchainRepoHooks = false\n' > "${TEST_HOME}/.config/git/config"
+    bootstrap --profile work --yes
+    [[ "$status" -eq 0 ]]
+    [[ "$(git config --file "${TEST_HOME}/.config/git/config" --get-all ns-bootstrap.chainRepoHooks)" == false ]]
 }
 
 @test "a work run keeps the company's shell, npm and pip files, sourcing ns-bootstrap from the top" {
@@ -119,7 +149,8 @@ normalised() {
     [[ "$output" == *"Work git identity ready"* ]]
     [[ "$(git config --file "${TEST_HOME}/.config/ns-bootstrap/gitconfig" user.email)" == person@work.example.com ]]
     [[ "$(cat "${TEST_HOME}/.gitconfig")" == "$before" ]]
-    refute_grep -i hookspath "${TEST_HOME}/.config/git/config"
+    # shellcheck disable=SC2088  # the literal ~ is what the include holds
+    [[ "$(git config --file "${TEST_HOME}/.config/git/config" --get-all include.path)" == "~/.config/ns-bootstrap/gitconfig" ]]
 }
 
 @test "with no npm or pip config, a work run copies them in as files you own" {
@@ -208,7 +239,7 @@ normalised() {
     [[ "$status" -eq 0 ]]
     [[ ! -e "$STUB_LOG" ]] || refute_grep 'brew bundle' "$STUB_LOG"
     grep -qxF '# >>> ns-bootstrap >>>' "${TEST_HOME}/.zshrc"
-    [[ ! -e "${TEST_HOME}/.config/git" && ! -e "${TEST_HOME}/.gitconfig" ]]
+    [[ ! -e "${TEST_HOME}/.gitconfig" ]]
     [[ "$(cat "${TEST_HOME}/.config/ns-bootstrap/profile")" == work ]]
 }
 

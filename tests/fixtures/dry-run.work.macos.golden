@@ -57,6 +57,8 @@ Git identity: the work name and email (and signing, if chosen) go in
   ~/.config/ns-bootstrap/gitconfig, included from ~/.config/git/config.
   ~/.gitconfig is left alone and read after it, so whatever it sets wins.
 
-Not yet handled for work: git hooks and scheduled updates. A real run stops before them.
+Git hooks: ns-bootstrap's, in ~/.config/git/hooks, set in ~/.config/git/config;
+  each repository's own hooks and Git LFS's run too (ns-bootstrap.chainRepoHooks).
+Daily update agent: off (scope: formulae)
 
 No changes were made.

@@ -5,4 +5,11 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$SCRIPT_DIR/lib/strip-ai-trailers.sh"
-strip_ai_trailers "$1"
+. "$SCRIPT_DIR/lib/chain.sh"
+# Off where a repository or employer requires AI-disclosure trailers:
+#   git config ns-bootstrap.stripAiTrailers false
+if [ "$(git config --bool ns-bootstrap.stripAiTrailers 2>/dev/null)" != false ]; then
+    strip_ai_trailers "$1"
+fi
+# Then the repository's own hook, so whatever it adds (a Change-Id) stays.
+chain_repo_hook prepare-commit-msg "$@"
