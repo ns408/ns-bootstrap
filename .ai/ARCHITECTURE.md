@@ -291,6 +291,8 @@ ns-bootstrap/
 ├── install/
 │   ├── bootstrap.sh              # Main entry point
 │   ├── lib/common.sh             # Logging, OS detection
+│   ├── lib/dotfiles.sh           # symlink_file (bootstrap.sh)
+│   ├── lib/template.sh           # process_template (bootstrap-secrets.sh)
 │   ├── common/install-modern-tools.sh
 │   ├── common/sync-git-pins.sh   # oh-my-zsh and plugins to their pinned commits
 │   ├── keys/*.asc                # vendored signing keys (AWS CLI, Helm)
@@ -326,6 +328,7 @@ ns-bootstrap/
 │   ├── launchd/*.plist.template          # daily LaunchAgent (default)
 │   └── launchd-daemon/*.daemon.plist.template  # opt-in LaunchDaemon (multi-account)
 ├── tests/*.bats                  # bats unit tests
+├── tests/fixtures/               # goldens: rendered gitconfigs, dry-run output
 ├── .gitleaksignore               # reviewed gitleaks false positives in history
 └── .github/workflows/
     ├── lint.yml                  # ShellCheck, zsh syntax, bats, secret scan

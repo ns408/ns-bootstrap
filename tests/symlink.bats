@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# Tests for symlink_file function from bootstrap.sh
+# Tests for symlink_file (install/lib/dotfiles.sh)
 
 setup() {
     # Create temp directory for each test
@@ -11,32 +11,8 @@ setup() {
     # Source logging functions
     source "${BATS_TEST_DIRNAME}/../install/lib/common.sh"
 
-    # Define symlink_file (extracted from bootstrap.sh)
-    symlink_file() {
-        local src="$1"
-        local dest="$2"
-
-        if [[ -L "$dest" ]] && [[ "$(readlink "$dest")" == "$src" ]]; then
-            return 0
-        fi
-
-        if [[ -e "$dest" ]] && [[ ! -L "$dest" ]]; then
-            if [[ "$BACKUP_CREATED" == false ]]; then
-                mkdir -p "$BACKUP_DIR"
-                BACKUP_CREATED=true
-            fi
-            local backup_name
-            backup_name=$(basename "$dest")
-            mv "$dest" "${BACKUP_DIR}/${backup_name}"
-        fi
-
-        if [[ -L "$dest" ]]; then
-            rm "$dest"
-        fi
-
-        ln -s "$src" "$dest"
-        LINKS_CHANGED=$((LINKS_CHANGED + 1))
-    }
+    # The real function, not a copy
+    source "${BATS_TEST_DIRNAME}/../install/lib/dotfiles.sh"
 }
 
 teardown() {

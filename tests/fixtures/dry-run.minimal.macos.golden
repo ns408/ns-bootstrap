@@ -1,0 +1,38 @@
+
+╔═══════════════════════════════════════╗
+║     ns-bootstrap - System Bootstrap       ║
+╚═══════════════════════════════════════╝
+
+
+==> Step 1: Detecting operating system...
+[INFO] Detected: macos (brew)
+[INFO] Selected profile: minimal
+
+=== Dry Run Preview ===
+
+OS:       macos (brew)
+Profile:  minimal
+
+Would install:
+  Brewfile: @ROOT@/packages/Brewfile.minimal (N packages)
+  Modern CLI tools via install-modern-tools.sh
+
+Would symlink:
+  ~/.zshrc
+  ~/.zprofile
+  ~/.vimrc
+  ~/.inputrc
+  ~/.gitignore_global
+  ~/.tmux.conf
+  ~/.config/starship.toml
+  ~/.npmrc
+  ~/.config/atuin/config.toml
+  ~/.config/pip/pip.conf
+
+Would configure:
+  oh-my-zsh + custom plugins
+  Secrets system (1Password / pass)
+  Scheduled update agents (launchd / systemd)
+  Global git hooks (gitleaks pre-commit + pre-push, AI-trailer stripping)
+
+No changes were made.
