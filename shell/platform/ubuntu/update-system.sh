@@ -30,8 +30,8 @@ update-apt-daily() {
 
 # --- Tier 2: Interactive daily (full system) ---
 update-my-system() {
-  local log crate
-  local binstall_list="${NS_BOOTSTRAP_DIR:-${HOME}/ns-bootstrap}/packages/binstall-tools.ubuntu"
+  local log
+  local binstall_tools="${NS_BOOTSTRAP_DIR:-${HOME}/ns-bootstrap}/install/common/install-binstall-tools.sh"
   local sync_pins="${NS_BOOTSTRAP_DIR:-${HOME}/ns-bootstrap}/install/common/sync-git-pins.sh"
   log="${_update_log_dir}/update-system-$(date +%Y%m%d).log"
   mkdir -p "$_update_log_dir"
@@ -58,17 +58,13 @@ update-my-system() {
       mise upgrade
     fi
 
-    # Rust CLI tools, including atuin: the same list bootstrap installed, so
-    # nothing stays at its bootstrap-day version. binstall skips any tool that
+    # Rust CLI tools, including atuin: the same script and list bootstrap used,
+    # so nothing stays at its bootstrap-day version. binstall skips any tool that
     # is already current. binstall itself is not upgraded here, since its
     # version is pinned in install-modern-tools.sh and watched by pin-check.yml.
-    if command -v cargo-binstall &>/dev/null && [[ -f "$binstall_list" ]]; then
+    if command -v cargo-binstall &>/dev/null && [[ -f "$binstall_tools" ]]; then
       echo -e "\n--- Rust CLI tools (cargo-binstall) ---"
-      while IFS= read -r crate; do
-        [[ -z "$crate" || "$crate" == \#* ]] && continue
-        cargo-binstall --no-confirm --disable-strategies compile \
-          --root "${HOME}/.local" "$crate" || echo "cargo-binstall ${crate} failed; continuing"
-      done < "$binstall_list"
+      bash "$binstall_tools" || echo "Some Rust CLI tools were not updated; see above"
     fi
 
     # oh-my-zsh, its plugins and the vim plugins: moved to the commits pinned in
