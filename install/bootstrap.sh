@@ -20,7 +20,7 @@ RELINK=false
 DRY_RUN=false
 AUTO_CONFIRM=false
 PROFILE=""
-PROFILES="minimal developer cloud-engineer"
+PROFILES="minimal developer cloud-engineer work"
 
 usage() {
     echo "Usage: $0 [--dotfiles-only] [--relink] [--dry-run] [--profile NAME] [--yes]"
@@ -69,6 +69,7 @@ fi
 # Source shared library
 source "${SCRIPT_DIR}/lib/common.sh"
 source "${SCRIPT_DIR}/lib/dotfiles.sh"
+source "${SCRIPT_DIR}/lib/settings.sh"
 
 echo ""
 echo -e "${BOLD}╔═══════════════════════════════════════╗${NC}"
@@ -84,6 +85,105 @@ echo ""
 log_step "Step 1: Detecting operating system..."
 detect_os
 log_info "Detected: ${OS} (${PKG_MGR})"
+
+# A Mac set up with the work profile stays on it: a plain run resolves to work,
+# and naming a personal profile there is refused rather than installing
+# personal apps on a company machine.
+IS_WORK=false
+if [[ "$(ns_remembered_profile)" == work ]]; then
+    if [[ -z "$PROFILE" ]]; then
+        PROFILE=work
+        log_info "Profile: work (remembered in ${NS_BOOTSTRAP_PROFILE_FILE})"
+    elif [[ "$PROFILE" != work ]]; then
+        log_error "This Mac was set up with the work profile; --profile ${PROFILE} would install personal packages on it."
+        log_error "If that is really what you want, delete ${NS_BOOTSTRAP_PROFILE_FILE} first."
+        exit 2
+    fi
+fi
+if [[ "$PROFILE" == work ]]; then
+    IS_WORK=true
+    if [[ "$OS" != macos ]]; then
+        log_error "The work profile is for a company-managed Mac; there is no ${OS} version."
+        exit 2
+    fi
+fi
+
+check_settings_or_exit() {   # PROFILE
+    local errors
+    if ! errors="$(ns_settings_check "$1")"; then
+        while IFS= read -r line; do log_error "$line"; done <<< "$errors"
+        log_error "Settings come from the environment, then ${NS_BOOTSTRAP_SETTINGS_FILE}."
+        exit 2
+    fi
+}
+
+# On a work Mac, Homebrew must already be there and be this account's own.
+# Installing it would mean running its install script from the internet, and a
+# Homebrew that belongs to another account is most likely IT's to manage.
+# Prints the problem, or nothing when Homebrew is fine.
+work_brew_problem() {
+    local prefix owner
+    if ! command -v brew &>/dev/null; then
+        echo "Homebrew is not installed. The work profile does not run Homebrew's install script: install it from the signed .pkg on Homebrew's GitHub releases page, or ask IT."
+        return
+    fi
+    prefix="$(brew --prefix)"
+    owner="$(stat -f "%Su" "$prefix" 2>/dev/null || echo unknown)"
+    if [[ "$owner" != "$USER" ]]; then
+        echo "Homebrew at ${prefix} belongs to '${owner}', so IT probably manages it. Ask IT before installing anything with it."
+    elif [[ ! -w "$prefix" ]]; then
+        echo "This account cannot write to Homebrew at ${prefix}. Ask IT before changing its permissions."
+    fi
+}
+
+work_dry_run() {
+    local brewfile="${PROJECT_ROOT}/packages/Brewfile.work" local_file problem key
+    local_file="$(ns_setting_path NS_BOOTSTRAP_BREWFILE_LOCAL work)"
+    echo ""
+    echo -e "${BOLD}=== Dry Run Preview (work) ===${NC}"
+    echo ""
+    echo "OS:       ${OS} (${PKG_MGR})"
+    echo "Profile:  work"
+    echo ""
+    if [[ "$DOTFILES_ONLY" == true ]]; then
+        echo "Would install: nothing (--dotfiles-only)"
+    else
+        problem="$(work_brew_problem)"
+        if [[ -n "$problem" ]]; then
+            echo "Homebrew: a real run would stop here."
+            echo "  ${problem}"
+        else
+            echo "Homebrew: $(brew --prefix), this account's own"
+        fi
+        echo ""
+        echo "Would install:"
+        echo "  Brewfile: ${brewfile} ($(grep -cE '^brew ' "$brewfile") packages)"
+        [[ -n "$local_file" ]] && echo "  Your Brewfile: ${local_file} ($(grep -cE '^(brew|cask|mas) ' "$local_file") entries)"
+        echo ""
+        echo "Would skip:"
+        echo "  Self-updating apps (messaging, browsers, VPNs and others)"
+        echo "  The separate modern CLI tools install: Brewfile.work carries them"
+        [[ -n "$(ns_setting HOMEBREW_NO_ANALYTICS work)" ]] && { echo ""; echo "Would configure:"; echo "  Homebrew analytics off"; }
+    fi
+    echo ""
+    echo "Settings (environment, then ${NS_BOOTSTRAP_SETTINGS_FILE}, then the work default):"
+    for key in NS_BOOTSTRAP_EXTRA_APPS NS_BOOTSTRAP_DAILY_UPDATE NS_BOOTSTRAP_DAILY_SCOPE NS_BOOTSTRAP_BREWFILE_LOCAL HOMEBREW_NO_ANALYTICS; do
+        echo "  ${key}=$(ns_setting "$key" work) ($(ns_setting_source "$key" work))"
+    done
+    echo ""
+    echo "Not yet handled for work: dotfiles, git hooks, secrets and scheduled updates."
+    echo "A real run installs the packages above, then stops before any of those."
+    echo ""
+    echo -e "${GREEN}No changes were made.${NC}"
+}
+
+if [[ "$IS_WORK" == true ]]; then
+    check_settings_or_exit work
+    if [[ "$DRY_RUN" == true ]]; then
+        work_dry_run
+        exit 0
+    fi
+fi
 
 if [[ "$DOTFILES_ONLY" == false ]]; then
 
@@ -106,6 +206,7 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
     fi
 
     log_info "Selected profile: ${PROFILE}"
+    check_settings_or_exit "$PROFILE"
 
     # === Dry Run Preview ===
     if [[ "$DRY_RUN" == true ]]; then
@@ -141,20 +242,40 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
     fi
 
     # === Step 3: Check permissions and confirm ===
-    [[ "$OS" == "macos" ]] && check_brew_permissions
+    if [[ "$IS_WORK" == true ]]; then
+        brew_problem="$(work_brew_problem)"
+        if [[ -n "$brew_problem" ]]; then
+            log_error "$brew_problem"
+            log_error "Nothing was changed."
+            exit 1
+        fi
+    elif [[ "$OS" == "macos" ]]; then
+        check_brew_permissions
+    fi
 
     echo ""
     echo -e "${YELLOW}This will:${NC}"
-    echo "  - Install ${PROFILE} packages via ${PKG_MGR}"
-    echo "  - Install modern CLI tools (ripgrep, fd, fzf, bat, zoxide, etc.)"
-    echo "  - Symlink dotfiles (with backup of existing)"
-    echo "  - Initialize secrets system"
+    if [[ "$IS_WORK" == true ]]; then
+        echo "  - Install the work packages (packages/Brewfile.work) via brew"
+        echo "  - Stop before dotfiles, git hooks and secrets (not yet handled for work)"
+    else
+        echo "  - Install ${PROFILE} packages via ${PKG_MGR}"
+        echo "  - Install modern CLI tools (ripgrep, fd, fzf, bat, zoxide, etc.)"
+        echo "  - Symlink dotfiles (with backup of existing)"
+        echo "  - Initialize secrets system"
+    fi
     echo ""
     if [[ "$AUTO_CONFIRM" == true ]]; then
         log_info "Auto-confirmed (--yes)"
     else
         read -p "Continue? [y/N]: " confirm
         [[ "${confirm:-n}" != "y" ]] && { echo "Aborted."; exit 0; }
+    fi
+
+    if [[ "$IS_WORK" == true ]]; then
+        mkdir -p "$(dirname "$NS_BOOTSTRAP_PROFILE_FILE")"
+        echo work > "$NS_BOOTSTRAP_PROFILE_FILE"
+        log_info "Remembered the work profile in ${NS_BOOTSTRAP_PROFILE_FILE}"
     fi
 
     # === Step 4: Install Package Manager ===
@@ -169,6 +290,11 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
             eval "$(/opt/homebrew/bin/brew shellenv)"
         else
             log_info "Homebrew already installed"
+        fi
+        if [[ -n "$(ns_setting HOMEBREW_NO_ANALYTICS "$PROFILE")" ]]; then
+            export HOMEBREW_NO_ANALYTICS=1
+            brew analytics off
+            log_info "Homebrew analytics off"
         fi
     else
         log_info "Updating apt..."
@@ -224,6 +350,16 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
         else
             log_warn "Brewfile not found: ${BREWFILE}"
         fi
+
+        # A Brewfile of your own (apps the company prefers, say), kept outside
+        # this repository and named by NS_BOOTSTRAP_BREWFILE_LOCAL.
+        LOCAL_BREWFILE="$(ns_setting_path NS_BOOTSTRAP_BREWFILE_LOCAL "$PROFILE")"
+        if [[ -n "$LOCAL_BREWFILE" ]]; then
+            log_info "Installing from your Brewfile: ${LOCAL_BREWFILE}"
+            if ! HOMEBREW_BUNDLE_NO_LOCK=1 brew bundle --file="$LOCAL_BREWFILE" --verbose; then
+                log_warn "Some packages from your Brewfile failed to install."
+            fi
+        fi
     else
         APT_FILE="${PACKAGES_DIR}/apt-packages.${PROFILE}"
         if [[ -f "$APT_FILE" ]]; then
@@ -235,7 +371,10 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
     fi
 
     # === Step 5b: Install-and-untrack casks (macOS only) ===
-    if [[ "$OS" == "macos" ]]; then
+    # Off for work, where these apps are personal or need a business licence.
+    if [[ "$OS" == "macos" && "$(ns_setting NS_BOOTSTRAP_EXTRA_APPS "$PROFILE")" == off ]]; then
+        log_info "Skipping self-updating apps (NS_BOOTSTRAP_EXTRA_APPS=off)"
+    elif [[ "$OS" == "macos" ]]; then
         log_info "Installing self-updating apps (will untrack from Homebrew)..."
         UNTRACK_CASKS=(
             # Messaging (standalone installs, not in Brewfile)
@@ -282,7 +421,7 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
 
     MODERN_TOOLS="${PROJECT_ROOT}/install/common/install-modern-tools.sh"
     if [[ -f "$MODERN_TOOLS" ]]; then
-        bash "$MODERN_TOOLS"
+        NS_BOOTSTRAP_PROFILE="$PROFILE" bash "$MODERN_TOOLS"
     else
         log_warn "Modern tools installer not found"
     fi
@@ -324,6 +463,20 @@ else
         exit 0
     fi
     log_info "Dotfiles-only mode: skipping package installation"
+fi
+
+# The work profile stops here until its dotfile, git-hook and secrets handling
+# exist: the steps below would replace files and settings that a company Mac's
+# IT may own.
+if [[ "$IS_WORK" == true ]]; then
+    echo ""
+    if [[ "$DOTFILES_ONLY" == true ]]; then
+        log_warn "Nothing to do yet for --dotfiles-only --profile work: dotfiles, git hooks and secrets are not handled for work yet."
+        exit 1
+    fi
+    log_info "Work packages installed."
+    log_warn "Stopping before dotfiles, git hooks and secrets: they are not handled for the work profile yet. Nothing else was changed."
+    exit 0
 fi
 
 # === Global git hooks (secrets scan + AI trailer stripping) ===
@@ -532,38 +685,52 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
                 fi
             done
 
-            for template in "${PROJECT_ROOT}/scripts/launchd/"*.plist.template; do
-                [[ -f "$template" ]] || continue
-                local_name="$(basename "$template" .template)"
-                label="${local_name%.plist}"
-                dest="${LAUNCH_AGENTS_DIR}/${local_name}"
+            if [[ "$(ns_setting NS_BOOTSTRAP_DAILY_UPDATE "$PROFILE")" == off ]]; then
+                # Switched off: remove the agent an earlier run installed.
+                for template in "${PROJECT_ROOT}/scripts/launchd/"*.plist.template; do
+                    [[ -f "$template" ]] || continue
+                    label="$(basename "$template" .plist.template)"
+                    if [[ -f "${LAUNCH_AGENTS_DIR}/${label}.plist" ]]; then
+                        launchctl bootout "${LAUNCHD_USER}/${label}" 2>/dev/null || true
+                        rm -f "${LAUNCH_AGENTS_DIR}/${label}.plist"
+                        log_info "Removed launchd agent: ${label}.plist"
+                    fi
+                done
+                log_info "Daily update agent off (NS_BOOTSTRAP_DAILY_UPDATE=off)"
+            else
+                for template in "${PROJECT_ROOT}/scripts/launchd/"*.plist.template; do
+                    [[ -f "$template" ]] || continue
+                    local_name="$(basename "$template" .template)"
+                    label="${local_name%.plist}"
+                    dest="${LAUNCH_AGENTS_DIR}/${local_name}"
 
-                # Substitute variables at install time
-                sed -e "s|\${PROJECT_ROOT}|${PROJECT_ROOT}|g" \
-                    -e "s|\${HOME}|${HOME}|g" \
-                    -e "s|\${HOMEBREW_PREFIX}|${HOMEBREW_PREFIX}|g" \
-                    "$template" > "$dest"
+                    # Substitute variables at install time
+                    sed -e "s|\${PROJECT_ROOT}|${PROJECT_ROOT}|g" \
+                        -e "s|\${HOME}|${HOME}|g" \
+                        -e "s|\${HOMEBREW_PREFIX}|${HOMEBREW_PREFIX}|g" \
+                        "$template" > "$dest"
 
-                # Use modern launchctl bootstrap (load/unload deprecated since macOS 10.10).
-                # Requires an active GUI session — silently deferred if run via su/SSH.
-                # macOS auto-loads LaunchAgents from ~/Library/LaunchAgents on next GUI login.
-                launchctl bootout "${LAUNCHD_USER}/${label}" 2>/dev/null || true
-                if launchctl bootstrap "${LAUNCHD_USER}" "$dest" 2>/dev/null; then
-                    log_info "Installed and loaded launchd agent: ${local_name}"
-                else
-                    log_info "Installed launchd agent: ${local_name} (will load on next GUI login)"
+                    # Use modern launchctl bootstrap (load/unload deprecated since macOS 10.10).
+                    # Requires an active GUI session — silently deferred if run via su/SSH.
+                    # macOS auto-loads LaunchAgents from ~/Library/LaunchAgents on next GUI login.
+                    launchctl bootout "${LAUNCHD_USER}/${label}" 2>/dev/null || true
+                    if launchctl bootstrap "${LAUNCHD_USER}" "$dest" 2>/dev/null; then
+                        log_info "Installed and loaded launchd agent: ${local_name}"
+                    else
+                        log_info "Installed launchd agent: ${local_name} (will load on next GUI login)"
+                    fi
+                done
+
+                # A per-user LaunchAgent only runs while its owner is logged in at the GUI.
+                # If the brew owner (this admin account) is not the console login user,
+                # the agent will never fire — point them at the opt-in LaunchDaemon.
+                console_user="$(stat -f '%Su' /dev/console 2>/dev/null)"
+                if [[ -n "$console_user" && "$console_user" != "$(whoami)" ]]; then
+                    log_warn "Update agent installed for '$(whoami)', but the GUI login user is '${console_user}'."
+                    log_warn "Per-user agents only run while their owner is logged in, so this may never fire."
+                    log_warn "For a multi-account setup, install the LaunchDaemon instead:"
+                    log_warn "  scripts/launchd-daemon/com.ns-bootstrap.update-daily.daemon.plist.template"
                 fi
-            done
-
-            # A per-user LaunchAgent only runs while its owner is logged in at the GUI.
-            # If the brew owner (this admin account) is not the console login user,
-            # the agent will never fire — point them at the opt-in LaunchDaemon.
-            console_user="$(stat -f '%Su' /dev/console 2>/dev/null)"
-            if [[ -n "$console_user" && "$console_user" != "$(whoami)" ]]; then
-                log_warn "Update agent installed for '$(whoami)', but the GUI login user is '${console_user}'."
-                log_warn "Per-user agents only run while their owner is logged in, so this may never fire."
-                log_warn "For a multi-account setup, install the LaunchDaemon instead:"
-                log_warn "  scripts/launchd-daemon/com.ns-bootstrap.update-daily.daemon.plist.template"
             fi
         else
             log_info "Skipping scheduled updates (non-admin user)"

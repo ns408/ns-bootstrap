@@ -2,13 +2,24 @@
 # macOS system update functions
 #
 # Two tiers:
-#   update-brew-daily   — Formulae only, no sudo, safe for background/launchd
+#   update-brew-daily   : formulae, and casks unless NS_BOOTSTRAP_DAILY_SCOPE=formulae;
+#                         no sudo, safe for background/launchd
 #   update-my-system    — Full update (casks, mise, pinned omz and plugins, softwareupdate list), may need sudo
 #   update-macos-install — Actually install macOS updates (may reboot)
 #
 # Scheduled via launchd (see scripts/scheduled-update-*.sh)
 
 _update_log_dir="${HOME}/.local/log"
+
+# NS_BOOTSTRAP_DAILY_SCOPE (install/lib/settings.sh): "all" upgrades formulae
+# and casks, "formulae" leaves apps alone, as on a company Mac. Read in a
+# subshell so the settings helpers stay out of the interactive shell.
+_update_scope() {
+  local lib="${NS_BOOTSTRAP_DIR:-${HOME}/ns-bootstrap}/install/lib/settings.sh"
+  local scope=all
+  [[ -f "$lib" ]] && scope="$(bash -c 'source "$1"; ns_setting NS_BOOTSTRAP_DAILY_SCOPE' _ "$lib")"
+  [[ "$scope" == formulae ]] && echo formulae || echo all
+}
 
 # --- Tier 1: Background daily (no sudo) ---
 update-brew-daily() {
@@ -19,7 +30,11 @@ update-brew-daily() {
   {
     echo "=== Brew Daily Update: $(date) ==="
     brew update || true
-    brew upgrade
+    if [[ "$(_update_scope)" == formulae ]]; then
+      brew upgrade --formula
+    else
+      brew upgrade
+    fi
     echo "=== Done: $(date) ==="
   } 2>&1 | tee -a "$log"
 
@@ -29,8 +44,9 @@ update-brew-daily() {
 
 # --- Tier 2: Interactive daily in tmux (may need sudo) ---
 update-my-system() {
-  local log
+  local log scope
   local sync_pins="${NS_BOOTSTRAP_DIR:-${HOME}/ns-bootstrap}/install/common/sync-git-pins.sh"
+  scope="$(_update_scope)"
   log="${_update_log_dir}/update-system-$(date +%Y%m%d).log"
   mkdir -p "$_update_log_dir"
 
@@ -40,16 +56,25 @@ update-my-system() {
     # Homebrew formulae (CLI tools) — refresh metadata then upgrade
     echo -e "\n--- Homebrew Formulae ---"
     brew update || true
-    brew upgrade
+    if [[ "$scope" == formulae ]]; then
+      brew upgrade --formula
+    else
+      brew upgrade
 
-    # Homebrew casks (GUI apps)
-    echo -e "\n--- Homebrew Casks ---"
-    brew upgrade --cask
+      # Homebrew casks (GUI apps)
+      echo -e "\n--- Homebrew Casks ---"
+      brew upgrade --cask
+    fi
     brew cleanup --prune=1
     brew autoremove
 
+    # Apps outside Homebrew are left alone when the scope is formulae.
+    if [[ "$scope" == formulae ]]; then
+      echo -e "\nNS_BOOTSTRAP_DAILY_SCOPE=formulae: leaving apps (casks, App Store, Microsoft) alone"
+    fi
+
     # Mac App Store (requires GUI session — skip if running via su/SSH/launchd)
-    if command -v mas &>/dev/null; then
+    if [[ "$scope" == all ]] && command -v mas &>/dev/null; then
       echo -e "\n--- Mac App Store ---"
       if [[ -z "${SECURITYSESSIONID:-}" ]]; then
         echo "No GUI session (su/SSH/launchd), skipping mas"
@@ -77,7 +102,7 @@ update-my-system() {
 
     # Microsoft apps
     local msupdate="/Library/Application Support/Microsoft/MAU2.0/Microsoft AutoUpdate.app/Contents/MacOS/msupdate"
-    if [[ -f "$msupdate" ]]; then
+    if [[ "$scope" == all && -f "$msupdate" ]]; then
       echo -e "\n--- Microsoft Apps ---"
       ("${msupdate}" --list | grep --silent "No updates available") || "${msupdate}" --install
     fi

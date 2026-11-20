@@ -1,0 +1,37 @@
+
+╔═══════════════════════════════════════╗
+║     ns-bootstrap - System Bootstrap       ║
+╚═══════════════════════════════════════╝
+
+
+==> Step 1: Detecting operating system...
+[INFO] Detected: macos (brew)
+
+=== Dry Run Preview (work) ===
+
+OS:       macos (brew)
+Profile:  work
+
+Homebrew: @HOME@/brew, this account's own
+
+Would install:
+  Brewfile: @ROOT@/packages/Brewfile.work (N packages)
+
+Would skip:
+  Self-updating apps (messaging, browsers, VPNs and others)
+  The separate modern CLI tools install: Brewfile.work carries them
+
+Would configure:
+  Homebrew analytics off
+
+Settings (environment, then @HOME@/.config/ns-bootstrap/settings, then the work default):
+  NS_BOOTSTRAP_EXTRA_APPS=off (default)
+  NS_BOOTSTRAP_DAILY_UPDATE=off (default)
+  NS_BOOTSTRAP_DAILY_SCOPE=formulae (default)
+  NS_BOOTSTRAP_BREWFILE_LOCAL= (default)
+  HOMEBREW_NO_ANALYTICS=1 (default)
+
+Not yet handled for work: dotfiles, git hooks, secrets and scheduled updates.
+A real run installs the packages above, then stops before any of those.
+
+No changes were made.
