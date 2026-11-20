@@ -281,7 +281,7 @@ if [[ "$has_work" == "y" ]]; then
     GIT_EMAIL_WORK=$(prompt_value "Work git email" "$existing_work_email")
     require_value "$GIT_EMAIL_WORK" "Work git email"
 
-    WORK_REPO_DIR=$(prompt_value "Work repository directory (e.g., /shared/clients/repositories/)" "$existing_work_repo")
+    WORK_REPO_DIR=$(prompt_value "Work repository directory (e.g., ~/work/)" "$existing_work_repo")
     require_value "$WORK_REPO_DIR" "Work repo directory"
 
     # Ensure trailing slash for gitdir matching

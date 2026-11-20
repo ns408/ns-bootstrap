@@ -19,10 +19,10 @@
 # Dependencies
 node_modules/
 
-# Local working files (scratch, drafts, handovers — never published)
+# Local working files
 temp/
 
-# Requests from other repositories: triaged here, never pushed
+# Local requests, never pushed
 docs/intake/
 
 # Misc

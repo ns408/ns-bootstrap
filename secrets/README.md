@@ -60,7 +60,7 @@ All bootstrap-managed secrets live in a **single Secure Note** called `ns-bootst
     │   ├── name           = "Your Name"
     │   ├── email          = "you@company.com"
     │   ├── signing_key    = "ssh-ed25519 AAAA..."
-    │   └── repo_dir       = "/shared/clients/repositories/"
+    │   └── repo_dir       = "~/work/"
     ├── Section: Tokens
     │   └── homebrew_github = "ghp_..."
     └── Section: Network

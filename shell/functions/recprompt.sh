@@ -3,7 +3,6 @@
 # Flip the terminal into a clean, minimal, history-paused state for screen-recorded
 # demos, then restore it. Reversible; the snapshot is taken lazily inside recprompt-on
 # so load order relative to Starship/Atuin does not matter.
-# Source doc: impacteng-content/drafts/youtube/RECORDING-HYGIENE.md
 # NOTE: recprompt-on sets HISTSIZE=0, discarding the current shell's in-memory history;
 # HISTFILE on disk and Atuin's SQLite store are untouched.
 
