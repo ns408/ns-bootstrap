@@ -1,9 +1,11 @@
 #!/usr/bin/env bats
 # The work profile in bootstrap.sh: macOS only, remembered, strict about
-# Homebrew, and stopping before dotfiles, git hooks and secrets.
+# Homebrew, keeping the files already on the Mac, and stopping before secrets
+# and git hooks.
 #
-# Every run has a throwaway HOME and stubs for brew, launchctl, dseditgroup
-# and sudo first on PATH, so even a broken guard cannot touch this machine.
+# Every run has a throwaway HOME, stubs for brew, launchctl, dseditgroup and
+# sudo first on PATH, an empty pin list (nothing is cloned) and an empty /etc
+# stand-in, so even a broken guard cannot touch this machine.
 
 setup() {
     [[ "$OSTYPE" == darwin* ]] || skip "the work profile is macOS only"
@@ -12,7 +14,8 @@ setup() {
     STUBS="${TEST_HOME}/stubs"
     BREW_PREFIX="${TEST_HOME}/brew"
     STUB_LOG="${TEST_HOME}/stub.log"
-    mkdir -p "$STUBS" "$BREW_PREFIX"
+    mkdir -p "$STUBS" "$BREW_PREFIX" "${TEST_HOME}/etc"
+    : > "${TEST_HOME}/no-pins"
     cat > "${STUBS}/brew" <<'EOF'
 #!/usr/bin/env bash
 echo "brew $*" >> "$STUB_LOG"
@@ -44,6 +47,7 @@ teardown() {
 
 bootstrap() {
     run env -u NONINTERACTIVE HOME="$TEST_HOME" PATH="${STUBS}:${PATH}" \
+        GIT_PINS_FILE="${TEST_HOME}/no-pins" NS_BOOTSTRAP_ETC_DIR="${TEST_HOME}/etc" \
         "${ROOT}/install/bootstrap.sh" "$@" < /dev/null
 }
 
@@ -72,19 +76,90 @@ normalised() {
     [[ "$status" -eq 1 ]]
     [[ "$output" == *"Nothing was changed."* ]]
     [[ "$output" != *"sudo chown"* ]]
-    [[ -z "$(find "$TEST_HOME" -mindepth 1 -maxdepth 1 ! -name stubs ! -name brew ! -name stub.log)" ]]
+    [[ -z "$(find "$TEST_HOME" -mindepth 1 -maxdepth 1 ! -name stubs ! -name brew ! -name stub.log ! -name etc ! -name no-pins)" ]]
 }
 
-@test "a real work run installs Brewfile.work only, remembers work, and stops before dotfiles" {
+@test "a real work run installs Brewfile.work only, remembers work, and stops before secrets and git hooks" {
     bootstrap --profile work --yes
     [[ "$status" -eq 0 ]]
-    [[ "$output" == *"Stopping before dotfiles, git hooks and secrets"* ]]
+    [[ "$output" == *"Stopping before secrets and git hooks"* ]]
     grep -qx "brew bundle --file=${ROOT}/packages/Brewfile.work --verbose" "$STUB_LOG"
     grep -qx "brew analytics off" "$STUB_LOG"
     refute_grep -E -- '--cask|brew install' "$STUB_LOG"
     refute_grep -E '^(launchctl|sudo)' "$STUB_LOG"
     [[ "$(cat "${TEST_HOME}/.config/ns-bootstrap/profile")" == work ]]
-    [[ ! -e "${TEST_HOME}/.zshrc" && ! -e "${TEST_HOME}/.gitconfig" && ! -e "${TEST_HOME}/.config/git" ]]
+    [[ ! -e "${TEST_HOME}/.gitconfig" && ! -e "${TEST_HOME}/.config/git" ]]
+}
+
+@test "a work run keeps the company's shell, npm and pip files, sourcing ns-bootstrap from the top" {
+    printf '# IT\nexport HTTPS_PROXY=http://proxy.example:8080\n' > "${TEST_HOME}/.zshrc"
+    chmod 640 "${TEST_HOME}/.zshrc"
+    printf 'registry=https://npm.example.com/\n' > "${TEST_HOME}/.npmrc"
+    mkdir -p "${TEST_HOME}/.config/pip"
+    printf '[global]\nindex-url = https://pypi.example.com/simple\n' > "${TEST_HOME}/.config/pip/pip.conf"
+    bootstrap --profile work --yes
+    [[ "$status" -eq 0 ]]
+    [[ "$(head -1 "${TEST_HOME}/.zshrc")" == "# >>> ns-bootstrap >>>" ]]
+    grep -qxF "[[ -f \"${ROOT}/dotfiles/shell/.zshrc\" ]] && source \"${ROOT}/dotfiles/shell/.zshrc\"" "${TEST_HOME}/.zshrc"
+    [[ "$(tail -2 "${TEST_HOME}/.zshrc")" == $'# IT\nexport HTTPS_PROXY=http://proxy.example:8080' ]]
+    [[ "$(stat -f %Lp "${TEST_HOME}/.zshrc")" == 640 ]]
+    cmp "${TEST_HOME}"/.dotfiles-backup/*/.zshrc <(printf '# IT\nexport HTTPS_PROXY=http://proxy.example:8080\n')
+    grep -qF "source \"${ROOT}/dotfiles/shell/.zprofile\"" "${TEST_HOME}/.zprofile"
+    [[ ! -L "${TEST_HOME}/.npmrc" ]] && grep -qx 'registry=https://npm.example.com/' "${TEST_HOME}/.npmrc"
+    grep -q 'pypi.example.com' "${TEST_HOME}/.config/pip/pip.conf"
+    [[ "$(readlink "${TEST_HOME}/.vimrc")" == "${ROOT}/dotfiles/vim/.vimrc" ]]
+}
+
+@test "with no npm or pip config, a work run copies them in as files you own" {
+    bootstrap --profile work --yes
+    [[ "$status" -eq 0 ]]
+    [[ -f "${TEST_HOME}/.npmrc" && ! -L "${TEST_HOME}/.npmrc" ]]
+    cmp "${TEST_HOME}/.npmrc" "${ROOT}/dotfiles/npm/.npmrc"
+    [[ -f "${TEST_HOME}/.config/pip/pip.conf" && ! -L "${TEST_HOME}/.config/pip/pip.conf" ]]
+}
+
+@test "a second work run changes nothing" {
+    printf 'export EDITOR=nano\n' > "${TEST_HOME}/.zshrc"
+    bootstrap --profile work --yes
+    before="$(cat "${TEST_HOME}/.zshrc" "${TEST_HOME}/.zprofile")"
+    bootstrap --profile work --yes
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == *"Already sourced: ${TEST_HOME}/.zshrc"* ]]
+    [[ "$(cat "${TEST_HOME}/.zshrc" "${TEST_HOME}/.zprofile")" == "$before" ]]
+    [[ "$(find "${TEST_HOME}/.dotfiles-backup" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')" == 1 ]]
+}
+
+@test "a dotfile already there is kept on a work Mac" {
+    echo 'set nocompatible' > "${TEST_HOME}/.vimrc"
+    bootstrap --profile work --yes
+    [[ "$status" -eq 0 ]]
+    [[ ! -L "${TEST_HOME}/.vimrc" ]] && grep -qx 'set nocompatible' "${TEST_HOME}/.vimrc"
+}
+
+@test "--relink on a work Mac points the block at the repo's new place and keeps the rest" {
+    mkdir -p "${TEST_HOME}/.config/ns-bootstrap"
+    echo work > "${TEST_HOME}/.config/ns-bootstrap/profile"
+    printf '%s\n' '# >>> ns-bootstrap >>>' '[[ -f "/old/place/dotfiles/shell/.zshrc" ]] && source "/old/place/dotfiles/shell/.zshrc"' \
+        '# <<< ns-bootstrap <<<' '' 'export EDITOR=nano' > "${TEST_HOME}/.zshrc"
+    bootstrap --relink
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == *"Relink complete"* ]]
+    grep -qF "source \"${ROOT}/dotfiles/shell/.zshrc\"" "${TEST_HOME}/.zshrc"
+    refute_grep -F "/old/place" "${TEST_HOME}/.zshrc"
+    [[ "$(tail -1 "${TEST_HOME}/.zshrc")" == "export EDITOR=nano" ]]
+    [[ "$(grep -c '^# >>> ns-bootstrap >>>$' "${TEST_HOME}/.zshrc")" == 1 ]]
+}
+
+@test "the work dry run names settings both sides set, never their values" {
+    printf 'export EDITOR=secret-editor-value\nalias g="git status"\n' > "${TEST_HOME}/.zshrc"
+    printf 'export LANG=en_GB.UTF-8\n' > "${TEST_HOME}/etc/zprofile"
+    bootstrap --profile work --dry-run
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == *"EDITOR: ~/.zshrc runs later, so its value wins"* ]]
+    [[ "$output" == *"alias g: ~/.zshrc runs later, so its value wins"* ]]
+    [[ "$output" == *"LANG: ${TEST_HOME}/etc/zprofile runs earlier, so ns-bootstrap's value wins"* || "$output" == *"LANG: ~/etc/zprofile runs earlier, so ns-bootstrap's value wins"* ]]
+    [[ "$output" != *"secret-editor-value"* && "$output" != *"en_GB"* ]]
+    [[ "$output" == *"~/.zshrc: add the ns-bootstrap block at the top; your lines stay, after it"* ]]
 }
 
 @test "a Brewfile of your own is installed after Brewfile.work" {
@@ -113,14 +188,16 @@ normalised() {
     [[ "$output" == *"would install personal packages on it"* ]]
 }
 
-@test "work with --dotfiles-only previews nothing to install and does nothing for real" {
+@test "work with --dotfiles-only installs nothing but still sets up the dotfiles" {
     bootstrap --dotfiles-only --profile work --dry-run
     [[ "$status" -eq 0 ]]
     [[ "$output" == *"Would install: nothing (--dotfiles-only)"* ]]
     bootstrap --dotfiles-only --profile work --yes
-    [[ "$status" -eq 1 ]]
-    [[ "$output" == *"Nothing to do yet for --dotfiles-only --profile work"* ]]
-    [[ ! -e "${TEST_HOME}/.zshrc" && ! -e "${TEST_HOME}/.config/git" ]]
+    [[ "$status" -eq 0 ]]
+    [[ ! -e "$STUB_LOG" ]] || refute_grep 'brew bundle' "$STUB_LOG"
+    grep -qxF '# >>> ns-bootstrap >>>' "${TEST_HOME}/.zshrc"
+    [[ ! -e "${TEST_HOME}/.config/git" && ! -e "${TEST_HOME}/.gitconfig" ]]
+    [[ "$(cat "${TEST_HOME}/.config/ns-bootstrap/profile")" == work ]]
 }
 
 @test "extra apps switched on for work stop the run with status 2" {

@@ -291,7 +291,7 @@ ns-bootstrap/
 ├── install/
 │   ├── bootstrap.sh              # Main entry point
 │   ├── lib/common.sh             # Logging, OS detection
-│   ├── lib/dotfiles.sh           # symlink_file (bootstrap.sh)
+│   ├── lib/dotfiles.sh           # symlink_file; for work, the source block, keep-or-link and conflict report
 │   ├── lib/template.sh           # process_template (bootstrap-secrets.sh)
 │   ├── lib/settings.sh           # settings: environment, then ~/.config/ns-bootstrap/settings, then profile default
 │   ├── common/install-modern-tools.sh

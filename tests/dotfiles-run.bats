@@ -15,7 +15,7 @@ teardown() {
 
 dotfiles_run() {
     run env -u NONINTERACTIVE HOME="$TEST_HOME" GIT_PINS_FILE="${TEST_HOME}/no-pins" \
-        GIT_CONFIG_NOSYSTEM=1 "${ROOT}/install/bootstrap.sh" --dotfiles-only --yes "$@" < /dev/null
+        GIT_CONFIG_NOSYSTEM=1 "${ROOT}/install/bootstrap.sh" --dotfiles-only --yes < /dev/null
 }
 
 @test "an existing ~/.npmrc of your own is kept" {
