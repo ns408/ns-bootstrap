@@ -28,6 +28,8 @@ cd ~/ns-bootstrap
 ./install/bootstrap.sh --dry-run        # Preview what would be installed
 ```
 
+An unknown option or profile name stops with exit status 2 before anything changes; `--help` lists the options.
+
 ## Profiles
 
 | Profile | Includes |
