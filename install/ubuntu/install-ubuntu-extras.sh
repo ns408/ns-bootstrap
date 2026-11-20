@@ -192,16 +192,16 @@ fi
 # as cargo-binstall is. Bump the version and both digests together, after
 # checking the new digests against the release's build provenance.
 log_info "Checking OSV-Scanner and Trivy..."
-OSV_VERSION="2.6.0"
+OSV_VERSION="2.7.0"
 TRIVY_VERSION="0.74.0"
 if [[ "$(dpkg --print-architecture)" == "arm64" ]]; then
     OSV_ASSET="osv-scanner_linux_arm64"
-    OSV_SHA256="2c71403eb443d05891c4f268c3ad771cf4f16e5443463fd7851ef8f454d3c7e4"  # gitleaks:allow (public checksum)
+    OSV_SHA256="4061ef4c021ed3c47f203b818f337e351336cc5cd67c0274fc36bd1dfc728dd7"  # gitleaks:allow (public checksum)
     TRIVY_ASSET="trivy_${TRIVY_VERSION}_Linux-ARM64.tar.gz"
     TRIVY_SHA256="b94ce1976bbf3c15b514b605ee88be7c6d94a29be2302847ff01cb794d47aad5"  # gitleaks:allow (public checksum)
 else
     OSV_ASSET="osv-scanner_linux_amd64"
-    OSV_SHA256="ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108"  # gitleaks:allow (public checksum)
+    OSV_SHA256="160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b"  # gitleaks:allow (public checksum)
     TRIVY_ASSET="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
     TRIVY_SHA256="2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"  # gitleaks:allow (public checksum)
 fi

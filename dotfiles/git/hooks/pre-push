@@ -90,7 +90,7 @@ fi
 # Without Docker, an installed scanner runs natively (the Ubuntu bootstrap
 # installs pinned binaries); otherwise the scan is skipped.
 TRIVY_IMAGE="ghcr.io/aquasecurity/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969"
-OSV_IMAGE="ghcr.io/google/osv-scanner:v2.6.0@sha256:afd838850ac1a0fcc15ff4a041dc9ba11123c3f0d2666217a5f0fcf9222b55fa"
+OSV_IMAGE="ghcr.io/google/osv-scanner:v2.7.0@sha256:4f3b7e2c64b9d38a5febc5a7e4a3dfef1d1362f726dea7a2ef4762b46469fcd0"
 lockfiles='(^|/)(package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lock|uv\.lock|poetry\.lock|pdm\.lock|Pipfile\.lock|requirements[^/]*\.txt|Cargo\.lock|go\.mod|Gemfile\.lock|composer\.lock|mix\.lock|pubspec\.lock|gradle\.lockfile|packages\.lock\.json)$'
 trivy_targets='(^|/)(Dockerfile[^/]*|Containerfile)$|(^|/)(_site|dist)/|\.tf$'
 scan_cache="${XDG_CACHE_HOME:-$HOME/.cache}/ns-bootstrap/scanners"
