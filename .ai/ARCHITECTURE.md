@@ -293,6 +293,7 @@ ns-bootstrap/
 │   ├── lib/common.sh             # Logging, OS detection
 │   ├── lib/dotfiles.sh           # symlink_file (bootstrap.sh)
 │   ├── lib/template.sh           # process_template (bootstrap-secrets.sh)
+│   ├── lib/settings.sh           # settings: environment, then ~/.config/ns-bootstrap/settings, then profile default
 │   ├── common/install-modern-tools.sh
 │   ├── common/sync-git-pins.sh   # oh-my-zsh and plugins to their pinned commits
 │   ├── keys/*.asc                # vendored signing keys (AWS CLI, Helm)

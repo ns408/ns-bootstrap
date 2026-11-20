@@ -51,13 +51,13 @@ refuses() {
 
 @test "an unknown profile exits 2" {
     bootstrap --dry-run --profile dev
-    refuses "unknown profile: dev (choose minimal, developer, cloud-engineer)"
+    refuses "unknown profile: dev (choose minimal, developer, cloud-engineer, work)"
 }
 
 @test "--help prints usage and exits 0" {
     bootstrap --help
     [[ "$status" -eq 0 ]]
-    [[ "$output" == *"--profile NAME    Set profile: minimal, developer, cloud-engineer"* ]]
+    [[ "$output" == *"--profile NAME    Set profile: minimal, developer, cloud-engineer, work"* ]]
 }
 
 @test "each profile is accepted, in either flag order" {

@@ -28,33 +28,39 @@ if [[ "$OS" == "macos" ]]; then
     check_brew_permissions
 
     # Modern CLI tools
-    log_info "Installing core modern tools..."
-    brew install \
-        ripgrep \
-        fd \
-        fzf \
-        bat \
-        zoxide \
-        eza \
-        git-delta
+    # The work profile's Brewfile carries its own short list of these, and a
+    # company Mac takes nothing beyond it.
+    if [[ "${NS_BOOTSTRAP_PROFILE:-}" == work ]]; then
+        log_info "Work profile: these tools come from Brewfile.work; installing nothing more."
+    else
+        log_info "Installing core modern tools..."
+        brew install \
+            ripgrep \
+            fd \
+            fzf \
+            bat \
+            zoxide \
+            eza \
+            git-delta
 
-    log_info "Installing system monitoring tools..."
-    brew install \
-        btop \
-        dust \
-        duf \
-        procs \
-        hyperfine
+        log_info "Installing system monitoring tools..."
+        brew install \
+            btop \
+            dust \
+            duf \
+            procs \
+            hyperfine
 
-    log_info "Installing additional utilities..."
-    brew install \
-        httpie \
-        doggo \
-        gping \
-        tldr \
-        direnv \
-        jq \
-        yq
+        log_info "Installing additional utilities..."
+        brew install \
+            httpie \
+            doggo \
+            gping \
+            tldr \
+            direnv \
+            jq \
+            yq
+    fi
 
     # Post-install: fzf key bindings
     log_info "Setting up fzf key bindings..."
@@ -66,9 +72,11 @@ if [[ "$OS" == "macos" ]]; then
     log_info "Building bat cache..."
     bat cache --build &> /dev/null || true
 
-    # Atuin (modern shell history)
-    log_info "Installing atuin (shell history)..."
-    brew install atuin
+    # Atuin (modern shell history); Brewfile.work already has it.
+    if [[ "${NS_BOOTSTRAP_PROFILE:-}" != work ]]; then
+        log_info "Installing atuin (shell history)..."
+        brew install atuin
+    fi
 
     log_info "macOS modern tools installed successfully!"
 
