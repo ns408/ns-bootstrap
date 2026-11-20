@@ -11,7 +11,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        profile: [minimal, developer, cloud-engineer]
+        profile: [minimal, developer, cloud-engineer, work]
     steps:
       - uses: actions/checkout@v7
 
@@ -26,3 +26,25 @@ jobs:
               echo "⚠ Formula/cask not found: $name"
             fi
           done < <(grep -E '^(brew|cask) ' "packages/Brewfile.${{ matrix.profile }}")
+
+      # A company Mac takes no software that needs a business licence. Every
+      # formula in Brewfile.work must carry a licence, and every identifier in
+      # it must be on this list of open-source licences; anything else fails.
+      - name: Licences in Brewfile.work are open source
+        if: matrix.profile == 'work'
+        run: |
+          allowed=" 0BSD Apache-2.0 BSD-2-Clause BSD-3-Clause EUPL-1.2 GPL-2.0-only GPL-2.0-or-later GPL-3.0-only GPL-3.0-or-later ISC LGPL-2.1-only LGPL-2.1-or-later LGPL-3.0-only LGPL-3.0-or-later MIT MPL-2.0 Unlicense Zlib "
+          bad=0
+          for f in $(grep -oE '^brew "[^"]+"' packages/Brewfile.work | cut -d'"' -f2); do
+            lic=$(brew info --json=v2 --formula "$f" | jq -r '.formulae[0].license // ""')
+            ids=$(tr '()' '  ' <<< "$lic" | tr -s ' ' '\n' | grep -vxE 'AND|OR' || true)
+            unknown=""
+            for id in $ids; do [[ "$allowed" == *" $id "* ]] || unknown+=" $id"; done
+            if [[ -z "$lic" || -n "$unknown" ]]; then
+              echo "::error::$f has licence '${lic:-none}'; not on the open-source list:${unknown:- missing}"
+              bad=1
+            else
+              echo "ok  $f: $lic"
+            fi
+          done
+          exit "$bad"
