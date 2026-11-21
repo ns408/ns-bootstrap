@@ -13,7 +13,18 @@ setup() {
 }
 
 teardown() {
+    [[ -n "${GNUPGHOME:-}" ]] && gpgconf --kill gpg-agent 2>/dev/null
     rm -rf "$TEST_HOME"
+}
+
+signed_commit() {          # FORMAT [ALLOWED_SIGNERS]: an empty commit in a new repository, then FORMAT of it
+    local repo="${TEST_HOME}/repo"
+    git init -q "$repo"
+    env -i HOME="$TEST_HOME" TMPDIR="${TMPDIR:-/tmp}" PATH="$PATH" GIT_CONFIG_NOSYSTEM=1 \
+        ${GNUPGHOME:+"GNUPGHOME=$GNUPGHOME"} git -C "$repo" commit -q --allow-empty -m test
+    env -i HOME="$TEST_HOME" TMPDIR="${TMPDIR:-/tmp}" PATH="$PATH" GIT_CONFIG_NOSYSTEM=1 \
+        ${GNUPGHOME:+"GNUPGHOME=$GNUPGHOME"} git -C "$repo" ${2:+-c "gpg.ssh.allowedSignersFile=$2"} \
+        log -1 --format="$1"
 }
 
 # A plain "! cmd" line never fails a bats test (set -e ignores it).
@@ -113,6 +124,28 @@ lookup() {                 # KEY: what git resolves for this HOME, with a clean 
     [[ "$status" -eq 0 ]]
     [[ "$(git config --file "$WORK_FILE" gpg.format)" == openpgp ]]
     [[ "$(git config --file "$WORK_FILE" user.signingkey)" == 0123456789ABCDEF ]]
+}
+
+@test "ssh-file signing signs a commit with the work key" {
+    mkdir -p "${TEST_HOME}/.ssh"
+    ssh-keygen -q -t ed25519 -N "" -C work -f "${TEST_HOME}/.ssh/id_ed25519"
+    secrets NS_BOOTSTRAP_GIT_SIGNING=ssh-file
+    [[ "$status" -eq 0 ]]
+    echo "person@work.example.com $(cat "${TEST_HOME}/.ssh/id_ed25519.pub")" > "${TEST_HOME}/allowed"
+    fp="$(ssh-keygen -lf "${TEST_HOME}/.ssh/id_ed25519.pub" | awk '{ print $2 }')"
+    [[ "$(signed_commit '%G? %GF %ae' "${TEST_HOME}/allowed")" == "G $fp person@work.example.com" ]]
+}
+
+@test "gpg signing signs a commit with the work key" {
+    command -v gpg >/dev/null || skip "gpg not installed"
+    export GNUPGHOME="${TEST_HOME}/gnupg"
+    mkdir -m 700 "$GNUPGHOME"
+    gpg --batch --quiet --passphrase '' --quick-gen-key "Example Person <person@work.example.com>" ed25519 sign never \
+        2>/dev/null || skip "gpg cannot make a key here"
+    id="$(gpg --batch --list-secret-keys --with-colons | awk -F: '$1 == "sec" { print $5; exit }')"
+    secrets NS_BOOTSTRAP_GIT_SIGNING=gpg NS_BOOTSTRAP_GIT_SIGNING_KEY="$id"
+    [[ "$status" -eq 0 ]]
+    [[ "$(signed_commit '%G? %GK %ae')" == "G $id person@work.example.com" ]]
 }
 
 @test "1password signing uses op-ssh-sign and the public key" {
