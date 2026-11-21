@@ -47,3 +47,5 @@ coverage/
 .cache/
 
 **/.claude/settings.local.json
+
+**/.claude/.cc-writes/
