@@ -36,6 +36,18 @@ process_template() {
     content="${content//\$\{DATA_DIR\}/${DATA_DIR:-}}"
     content="${content//\$\{HOME\}/$HOME}"
 
+    # An includeIf with an empty gitdir pattern (no work folder given) matches
+    # every repository, so the included identity would apply everywhere. Leave
+    # the block out: its header, its lines, and the blank line after it.
+    if [[ "$content" == *'[includeIf "gitdir:"]'* ]]; then
+        content="$(printf '%s\n' "$content" | awk '
+            $0 == "[includeIf \"gitdir:\"]" { skip = 1; next }
+            skip && /^\[/ { skip = 0 }
+            skip && /^[[:space:]]*$/ { skip = 0; next }
+            !skip { print }')"
+        log_info "No work repository folder: the work includeIf is left out"
+    fi
+
     # Create output directory if needed
     mkdir -p "$(dirname "$output_file")"
 
