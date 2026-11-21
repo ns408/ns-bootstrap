@@ -32,6 +32,27 @@ teardown() {
     rm -rf "$TEST_DIR"
 }
 
+# A plain "! cmd" line never fails a bats test (set -e ignores it).
+refute_grep() {
+    if grep -q "$@"; then
+        echo "unexpected match: $*"
+        return 1
+    fi
+}
+
+render_home() {            # both templates into a throwaway HOME, as bootstrap-secrets.sh does
+    HOME="$TEST_DIR"
+    process_template "${ROOT}/dotfiles/git/.gitconfig.template" "${HOME}/.gitconfig"
+    process_template "${ROOT}/dotfiles/git/.gitconfig-work.template" "${HOME}/.gitconfig-work"
+}
+
+git_in() {                 # DIR ARGS: git in DIR as that HOME sees it, with a clean environment
+    local dir="$1"
+    shift
+    env -i HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" PATH="$PATH" GIT_CONFIG_NOSYSTEM=1 \
+        git -C "$dir" "$@"
+}
+
 @test "personal gitconfig renders exactly as before" {
     process_template "${ROOT}/dotfiles/git/.gitconfig.template" "${TEST_DIR}/gitconfig"
     diff "${FIXTURES}/gitconfig.personal.golden" "${TEST_DIR}/gitconfig"
@@ -40,6 +61,23 @@ teardown() {
 @test "work gitconfig renders exactly as before" {
     process_template "${ROOT}/dotfiles/git/.gitconfig-work.template" "${TEST_DIR}/gitconfig-work"
     diff "${FIXTURES}/gitconfig-work.golden" "${TEST_DIR}/gitconfig-work"
+}
+
+# git applies an includeIf with an empty gitdir pattern to every repository.
+@test "with no work folder the work include is left out and the personal identity applies" {
+    unset WORK_REPO_DIR
+    render_home
+    refute_grep -F 'gitdir:"' "${HOME}/.gitconfig"
+    git init -q "${TEST_DIR}/repo"
+    [[ "$(git_in "${TEST_DIR}/repo" config --show-origin user.email)" == "file:${HOME}/.gitconfig"$'\t'"person@example.com" ]]
+}
+
+@test "with a work folder only repositories inside it get the work identity" {
+    render_home             # WORK_REPO_DIR is ~/work/, as people enter it
+    git init -q "${TEST_DIR}/work/repo"
+    git init -q "${TEST_DIR}/personal"
+    [[ "$(git_in "${TEST_DIR}/work/repo" config user.email)" == person@work.example.com ]]
+    [[ "$(git_in "${TEST_DIR}/personal" config user.email)" == person@example.com ]]
 }
 
 @test "unset signing and credential values fall back to false and store" {
