@@ -29,7 +29,32 @@ setup() {
 }
 
 teardown() {
+    [[ -n "${GNUPGHOME:-}" ]] && gpgconf --kill gpg-agent 2>/dev/null
     rm -rf "$TEST_DIR"
+}
+
+ssh_key() {                # NAME: a throwaway key pair at $TEST_DIR/keys/NAME, no passphrase
+    mkdir -p "${TEST_DIR}/keys"
+    ssh-keygen -q -t ed25519 -N "" -C "$1" -f "${TEST_DIR}/keys/$1"
+}
+
+fingerprint() {            # NAME
+    ssh-keygen -lf "${TEST_DIR}/keys/$1.pub" | awk '{ print $2 }'
+}
+
+gpg_key() {                # EMAIL: a throwaway signing key; sets GPG_ID, or skips the test
+    command -v gpg >/dev/null || skip "gpg not installed"
+    export GNUPGHOME="${TEST_DIR}/gnupg"
+    mkdir -m 700 "$GNUPGHOME"
+    gpg --batch --quiet --passphrase '' --quick-gen-key "Example Person <$1>" ed25519 sign never 2>/dev/null \
+        || skip "gpg cannot make a key here"
+    GPG_ID="$(gpg --batch --list-secret-keys --with-colons | awk -F: '$1 == "sec" { print $5; exit }')"
+}
+
+signed_commit() {          # DIR FORMAT: an empty commit in a new repository at DIR, then FORMAT of it
+    git init -q "$1"
+    git_in "$1" commit -q --allow-empty -m test
+    git_in "$1" log -1 --format="$2"
 }
 
 # A plain "! cmd" line never fails a bats test (set -e ignores it).
@@ -50,7 +75,7 @@ git_in() {                 # DIR ARGS: git in DIR as that HOME sees it, with a c
     local dir="$1"
     shift
     env -i HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" PATH="$PATH" GIT_CONFIG_NOSYSTEM=1 \
-        git -C "$dir" "$@"
+        ${GNUPGHOME:+"GNUPGHOME=$GNUPGHOME"} git -C "$dir" "$@"
 }
 
 @test "personal gitconfig renders exactly as before" {
@@ -78,6 +103,31 @@ git_in() {                 # DIR ARGS: git in DIR as that HOME sees it, with a c
     git init -q "${TEST_DIR}/personal"
     [[ "$(git_in "${TEST_DIR}/work/repo" config user.email)" == person@work.example.com ]]
     [[ "$(git_in "${TEST_DIR}/personal" config user.email)" == person@example.com ]]
+}
+
+# ssh-keygen stands in for op-ssh-sign: git calls both the same way.
+@test "SSH signing: personal and work repositories each sign with their own key" {
+    ssh_key personal
+    ssh_key work
+    GIT_SIGNING_KEY="${TEST_DIR}/keys/personal.pub" WORK_SIGNING_KEY="${TEST_DIR}/keys/work.pub"
+    OP_SSH_SIGN_PATH="$(command -v ssh-keygen)"
+    render_home
+    printf '%s %s\n' person@example.com "$(cat "${TEST_DIR}/keys/personal.pub")" \
+        person@work.example.com "$(cat "${TEST_DIR}/keys/work.pub")" > "${HOME}/.gitconfig_allowed-signers"
+    [[ "$(signed_commit "${TEST_DIR}/personal" '%G? %GF %ae')" == "G $(fingerprint personal) person@example.com" ]]
+    [[ "$(signed_commit "${TEST_DIR}/work/repo" '%G? %GF %ae')" == "G $(fingerprint work) person@work.example.com" ]]
+}
+
+@test "GPG signing: a work key signs with openpgp while personal repositories keep SSH" {
+    gpg_key person@work.example.com
+    ssh_key personal
+    GIT_SIGNING_KEY="${TEST_DIR}/keys/personal.pub" OP_SSH_SIGN_PATH="$(command -v ssh-keygen)"
+    # What bootstrap-secrets.sh sets when work uses GPG.
+    WORK_SIGNING_KEY="$GPG_ID" WORK_GPG_SECTION=$'[gpg]\n    format = openpgp'
+    render_home
+    printf '%s %s\n' person@example.com "$(cat "${TEST_DIR}/keys/personal.pub")" > "${HOME}/.gitconfig_allowed-signers"
+    [[ "$(signed_commit "${TEST_DIR}/work/repo" '%G? %GK')" == "G $GPG_ID" ]]
+    [[ "$(signed_commit "${TEST_DIR}/personal" '%G? %GF')" == "G $(fingerprint personal)" ]]
 }
 
 @test "unset signing and credential values fall back to false and store" {
