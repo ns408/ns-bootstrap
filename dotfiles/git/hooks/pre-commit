@@ -35,7 +35,25 @@ if [ -f ".pre-commit-config.yaml" ]; then
              "$(command -v pre-commit 2>/dev/null)"; do
         if [ -n "$c" ] && [ -x "$c" ] && "$c" --version >/dev/null 2>&1; then pc="$c"; break; fi
     done
-    if [ -n "$pc" ]; then
+    # In an agent session (CLAUDECODE), or wherever pre-commit's store exists
+    # but cannot be written (an agent sandbox), check only the staged files.
+    # A plain run stashes: it writes a patch into the store, which fails there,
+    # and checks out the whole tree, briefly removing other sessions' unstaged
+    # edits. With --files it does neither. A staged file must have no unstaged
+    # changes, so the files on disk are what the commit holds.
+    store="${PRE_COMMIT_HOME:-${XDG_CACHE_HOME:-$HOME/.cache}/pre-commit}"
+    if [ -n "$pc" ] && { [ -n "${CLAUDECODE:-}" ] || { [ -d "$store" ] && [ ! -w "$store" ]; }; }; then
+        staged=()
+        while IFS= read -r -d '' f; do staged+=("$f"); done \
+            < <(git diff --cached --name-only --diff-filter=ACMR -z)
+        if [ "${#staged[@]}" -gt 0 ]; then
+            while IFS= read -r -d '' f; do
+                echo "COMMIT BLOCKED: $f has unstaged changes too; stage the whole file (git add $f) or undo the rest, then commit." >&2
+                exit 1
+            done < <(git diff --name-only -z -- "${staged[@]}")
+            "$pc" run --config .pre-commit-config.yaml --files "${staged[@]}" || exit 1
+        fi
+    elif [ -n "$pc" ]; then
         "$pc" run --config .pre-commit-config.yaml || exit 1
     else
         echo "NOTE: .pre-commit-config.yaml present but pre-commit not runnable here; repo hooks skipped." >&2
