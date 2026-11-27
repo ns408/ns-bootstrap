@@ -10,22 +10,21 @@ jobs:
     name: Verify Brewfile packages
     runs-on: macos-latest
     strategy:
+      fail-fast: false
       matrix:
         profile: [minimal, developer, cloud-engineer, work]
     steps:
       - uses: actions/checkout@v7
 
+      # Fails when an entry needs a Brewfile edit: not found, disabled,
+      # deprecated or renamed. Tap formulae need their taps first.
       - name: Check Brewfile.${{ matrix.profile }}
         run: |
-          brew bundle check --file=packages/Brewfile.${{ matrix.profile }} --no-upgrade 2>&1 || true
-          echo "---"
-          echo "Checking for removed formulae..."
-          while IFS= read -r line; do
-            name=$(echo "$line" | awk '{print $2}' | tr -d '"')
-            if [[ -n "$name" ]] && ! brew info "$name" &>/dev/null 2>&1; then
-              echo "⚠ Formula/cask not found: $name"
-            fi
-          done < <(grep -E '^(brew|cask) ' "packages/Brewfile.${{ matrix.profile }}")
+          file="packages/Brewfile.${{ matrix.profile }}"
+          for tap in $(grep -oE '^tap "[^"]+"' "$file" | cut -d'"' -f2); do
+            brew tap "$tap"
+          done
+          scripts/check-brewfile.sh "$file"
 
       # A company Mac takes no software that needs a business licence. Every
       # formula in Brewfile.work must carry a licence, and every identifier in
