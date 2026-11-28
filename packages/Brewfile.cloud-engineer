@@ -81,7 +81,7 @@ brew "go"
 
 # Cloud & Infrastructure
 brew "aws-iam-authenticator"
-brew "azure-cli"
+cask "azure-cli"
 brew "hashicorp/tap/terraform"
 brew "kubectl"
 brew "helm"
