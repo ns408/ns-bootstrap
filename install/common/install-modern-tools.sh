@@ -56,7 +56,7 @@ if [[ "$OS" == "macos" ]]; then
             httpie \
             doggo \
             gping \
-            tldr \
+            tlrc \
             direnv \
             jq \
             yq

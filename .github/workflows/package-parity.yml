@@ -16,7 +16,7 @@ jobs:
         run: |
           # Extract CLI tool names from Brewfile (skip taps, casks, mas)
           grep -E '^brew ' packages/Brewfile.cloud-engineer \
-            | sed 's/brew "\(.*\)"/\1/' \
+            | sed -E 's/^brew "([^"]+)".*/\1/' \
             | sed 's|.*/||' \
             > /tmp/macos-tools.txt
           echo "=== macOS brew tools ==="

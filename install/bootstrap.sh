@@ -381,37 +381,9 @@ if [[ "$DOTFILES_ONLY" == false ]]; then
     if [[ "$OS" == "macos" ]]; then
         BREWFILE="${PACKAGES_DIR}/Brewfile.${PROFILE}"
         if [[ -f "$BREWFILE" ]]; then
-            # Trust declared third-party taps BEFORE bundling. Homebrew's tap-trust
-            # enforcement blocks installing/updating from an untrusted tap, and bundle
-            # taps + installs in one step — so tap then trust each first. (brew trust is a
-            # recent feature; skip quietly on older versions.)
-            if brew help trust >/dev/null 2>&1; then
-                while IFS= read -r tap_name; do
-                    [[ -n "$tap_name" ]] || continue
-                    brew tap "$tap_name" >/dev/null 2>&1 || true
-                    if brew trust "$tap_name" >/dev/null 2>&1; then
-                        log_info "Trusted tap: ${tap_name}"
-                    else
-                        log_warn "Could not trust tap: ${tap_name}"
-                    fi
-                done < <(grep -E '^[[:space:]]*tap[[:space:]]' "$BREWFILE" \
-                         | sed -E 's/^[[:space:]]*tap[[:space:]]+"([^"]+)".*/\1/')
-            fi
-
-            # Migrate a core ffmpeg to the homebrew-ffmpeg tap build before bundling, so
-            # the tap formula installs without a binary-symlink conflict. Idempotent: skip
-            # if it is already the tap build. Receipt grep (not jq, which may not be
-            # installed yet) reads the keg's recorded source tap.
-            if grep -q '"homebrew-ffmpeg/ffmpeg/ffmpeg"' "$BREWFILE" \
-               && brew list --formula ffmpeg >/dev/null 2>&1; then
-                ffmpeg_cellar="$(brew --cellar ffmpeg 2>/dev/null)"
-                if grep -qs 'homebrew-ffmpeg/ffmpeg' "$ffmpeg_cellar"/*/INSTALL_RECEIPT.json; then
-                    log_info "ffmpeg already from homebrew-ffmpeg/ffmpeg; leaving as is."
-                else
-                    log_info "Replacing core ffmpeg with the homebrew-ffmpeg/ffmpeg build..."
-                    brew uninstall --ignore-dependencies ffmpeg || true
-                fi
-            fi
+            # Trust the entries the Brewfile marks trusted: true before bundling,
+            # one by one, never a whole tap (install/lib/common.sh).
+            trust_brewfile_entries "$BREWFILE"
 
             total=$(grep -cE '^(brew|cask|mas) ' "$BREWFILE")
             log_info "Installing ${total} packages from ${BREWFILE}..."

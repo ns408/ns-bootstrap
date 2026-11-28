@@ -1,10 +1,6 @@
 # Developer Profile - Minimal + programming languages and dev tools
 # Usage: brew bundle --file=Brewfile.developer
 
-# Taps
-tap "hashicorp/tap"
-tap "homebrew-ffmpeg/ffmpeg"
-
 # Include everything from minimal
 brew "bash"
 brew "coreutils"
@@ -44,7 +40,7 @@ brew "hyperfine"
 brew "httpie"
 brew "curl-impersonate"
 brew "gping"
-brew "tldr"
+brew "tlrc"
 brew "direnv"
 brew "doggo"
 brew "knot"
@@ -76,10 +72,10 @@ brew "yamllint"
 brew "qemu"
 brew "thefuck"
 brew "yt-dlp"
-# Richer ffmpeg: libass, drawtext (libfreetype), many extra filters — bottled.
-# fdk-aac omitted on purpose: it needs args: ["with-fdk-aac"], a from-source build that
-# recompiles on every ffmpeg update. Re-add that arg if you need the FDK AAC encoder.
-brew "homebrew-ffmpeg/ffmpeg/ffmpeg"
+# Homebrew's own prebuilt ffmpeg. The homebrew-ffmpeg tap adds subtitles (libass) and
+# text overlays (drawtext), but is community-run, builds from source on every upgrade
+# and would need tap trust, so it is left out (2026-11-29).
+brew "ffmpeg"
 
 # Languages
 brew "go"
@@ -88,7 +84,7 @@ brew "go"
 cask "1password"
 cask "1password-cli"
 cask "brave-browser"
-cask "docker"
+cask "docker-desktop"
 cask "drawio"
 cask "firefox"
 cask "ghostty"
