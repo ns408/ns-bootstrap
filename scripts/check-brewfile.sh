@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # Checks every formula and cask in the given Brewfiles against Homebrew and
-# fails when one needs an edit: not found, disabled, deprecated (Homebrew
-# disables a deprecated entry about a year later) or renamed. Prints one
-# GitHub Actions ::error:: line per finding, saying what to change, and
-# "ok" for each current entry. Taps, App Store apps and comments are skipped.
+# fails when one needs an edit: brew cannot look it up (gone, moved to a
+# cask, or from a tap and not trusted), or it is disabled, deprecated
+# (Homebrew disables a deprecated entry about a year later) or renamed.
+# Prints one GitHub Actions ::error:: line per finding, saying what to
+# change, and "ok" for each current entry. Taps, App Store apps and comments
+# are skipped.
 #
 # Casks are looked up with --cask: a plain `brew info docker` finds the docker
 # formula and passes a renamed docker cask.
 #
-# Used by .github/workflows/brew-check.yml. Needs brew and jq, and the
-# Brewfile's taps already added.
+# Used by .github/workflows/brew-check.yml. Needs brew and jq, with the
+# Brewfile's taps added and its trusted: true entries trusted first
+# (trust_brewfile_entries in install/lib/common.sh).
 #
 #   scripts/check-brewfile.sh packages/Brewfile.minimal [BREWFILE...]
 set -uo pipefail
@@ -48,16 +51,16 @@ check() {  # FILE KIND NAME
     json=$(brew info --json=v2 "$flag" "$name" 2>"$err")
     rc=$?
     if [[ "$rc" -ne 0 ]]; then
-        # brew's first error line says why, such as a move to a cask; failing
-        # that, its last line and exit code, such as a tap formula that
-        # would not load.
-        reason=$(grep -m1 '^Error: ' "$err" | sed 's/^Error: //')
+        # brew's first error line says why: a missing formula, a move to a
+        # cask, or a tap entry not trusted. Under GitHub Actions brew writes
+        # it as ::error::. Failing that, its last line and exit code.
+        reason=$(grep -m1 -E '^(Error: |::error::)' "$err" | sed -E 's/^(Error: |::error::)//')
         if [[ -n "$reason" ]]; then
             reason="brew: ${reason}"
         else
             reason="brew exit ${rc}$(grep -v '^[[:space:]]*$' "$err" | tail -n 1 | sed 's/^/: /')"
         fi
-        why="not found in Homebrew (${reason}); remove it or list what replaced it"
+        why="brew info failed (${reason})"
     else
         why=$(verdict "${name##*/}" <<< "$json") || why="brew info gave JSON this check cannot read"
     fi
