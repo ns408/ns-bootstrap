@@ -20,6 +20,8 @@ for f in "$@"; do
 done
 
 findings=0
+err=$(mktemp)
+trap 'rm -f "$err"' EXIT
 
 # What needs changing for one entry, from brew's JSON; empty when current.
 # WANT is the name as listed, without any tap prefix.
@@ -41,10 +43,12 @@ verdict() {  # WANT, JSON on stdin
 }
 
 check() {  # FILE KIND NAME
-    local file="$1" kind="$2" name="$3" flag json why
+    local file="$1" kind="$2" name="$3" flag json why reason
     [[ "$kind" == brew ]] && flag=--formula || flag=--cask
-    if ! json=$(brew info --json=v2 "$flag" "$name" 2>/dev/null); then
-        why="not found in Homebrew; remove it or list what replaced it"
+    if ! json=$(brew info --json=v2 "$flag" "$name" 2>"$err"); then
+        # brew's first error line says why, such as a move to a cask
+        reason=$(grep -m1 '^Error: ' "$err" | sed 's/^Error: //')
+        why="not found in Homebrew${reason:+ (brew: ${reason})}; remove it or list what replaced it"
     else
         why=$(verdict "${name##*/}" <<< "$json") || why="brew info gave JSON this check cannot read"
     fi
