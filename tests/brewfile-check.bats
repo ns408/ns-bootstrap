@@ -103,10 +103,10 @@ EOF
     f=$(brewfile Brewfile <<< 'brew "nosuchthing"')
     run "$CHECK" "$f"
     [[ "$status" -eq 1 ]]
-    [[ "$output" == *'brew "nosuchthing": not found in Homebrew'* ]] || { echo "$output"; false; }
+    [[ "$output" == *'brew "nosuchthing": brew info failed (brew: No available formula with the name "nosuchthing".)'* ]] || { echo "$output"; false; }
 }
 
-@test "a not-found finding quotes brew's own reason" {
+@test "a failed lookup quotes brew's own reason" {
     # brew says why on stderr, for example that a formula moved to a cask
     cat > "${STUB}/bin/brew" <<'BREW'
 #!/usr/bin/env bash
@@ -118,11 +118,26 @@ BREW
     f=$(brewfile Brewfile <<< 'brew "azure-cli"')
     run "$CHECK" "$f"
     [[ "$status" -eq 1 ]]
-    [[ "$output" == *'brew "azure-cli": not found in Homebrew (brew: No available formula with the name "azure-cli". It was migrated to homebrew/cask.); remove it or list what replaced it'* ]] \
+    [[ "$output" == *'brew "azure-cli": brew info failed (brew: No available formula with the name "azure-cli". It was migrated to homebrew/cask.)'* ]] \
         || { echo "$output"; false; }
 }
 
-@test "with no Error line, a not-found finding quotes brew's last line and exit code" {
+@test "brew's GitHub Actions error form is quoted too" {
+    # Under GitHub Actions brew prints ::error:: instead of Error:
+    cat > "${STUB}/bin/brew" <<'BREW'
+#!/usr/bin/env bash
+echo "::error::Refusing to load formula owner/tap/thing from untrusted tap owner/tap." >&2
+echo "Run \`brew trust --formula owner/tap/thing\` to trust it." >&2
+exit 1
+BREW
+    f=$(brewfile Brewfile <<< 'brew "owner/tap/thing"')
+    run "$CHECK" "$f"
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *'brew "owner/tap/thing": brew info failed (brew: Refusing to load formula owner/tap/thing from untrusted tap owner/tap.)'* ]] \
+        || { echo "$output"; false; }
+}
+
+@test "with no Error line, a failed lookup quotes brew's last line and exit code" {
     cat > "${STUB}/bin/brew" <<'BREW'
 #!/usr/bin/env bash
 echo "Warning: first line" >&2
@@ -133,7 +148,7 @@ BREW
     f=$(brewfile Brewfile <<< 'brew "owner/tap/thing"')
     run "$CHECK" "$f"
     [[ "$status" -eq 1 ]]
-    [[ "$output" == *'brew "owner/tap/thing": not found in Homebrew (brew exit 3: last thing brew said); remove it'* ]] \
+    [[ "$output" == *'brew "owner/tap/thing": brew info failed (brew exit 3: last thing brew said)'* ]] \
         || { echo "$output"; false; }
 }
 
