@@ -3,7 +3,6 @@
 
 # Taps
 tap "hashicorp/tap"
-tap "homebrew-ffmpeg/ffmpeg"
 
 # Include everything from developer
 brew "bash"
@@ -71,10 +70,10 @@ brew "sshuttle"
 brew "yamllint"
 brew "thefuck"
 brew "yt-dlp"
-# Richer ffmpeg: libass, drawtext (libfreetype), many extra filters — bottled.
-# fdk-aac omitted on purpose: it needs args: ["with-fdk-aac"], a from-source build that
-# recompiles on every ffmpeg update. Re-add that arg if you need the FDK AAC encoder.
-brew "homebrew-ffmpeg/ffmpeg/ffmpeg"
+# Homebrew's own prebuilt ffmpeg. The homebrew-ffmpeg tap adds subtitles (libass) and
+# text overlays (drawtext), but is community-run, builds from source on every upgrade
+# and would need tap trust, so it is left out (2026-11-29).
+brew "ffmpeg"
 
 # Languages
 brew "go"
@@ -82,7 +81,8 @@ brew "go"
 # Cloud & Infrastructure
 brew "aws-iam-authenticator"
 cask "azure-cli"
-brew "hashicorp/tap/terraform"
+# HashiCorp's own tap: Homebrew 6+ loads it only when trusted, so this one formula is.
+brew "hashicorp/tap/terraform", trusted: true
 brew "kubectl"
 brew "helm"
 brew "mysql-client"
