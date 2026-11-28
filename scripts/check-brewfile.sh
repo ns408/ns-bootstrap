@@ -43,12 +43,21 @@ verdict() {  # WANT, JSON on stdin
 }
 
 check() {  # FILE KIND NAME
-    local file="$1" kind="$2" name="$3" flag json why reason
+    local file="$1" kind="$2" name="$3" flag json why reason rc
     [[ "$kind" == brew ]] && flag=--formula || flag=--cask
-    if ! json=$(brew info --json=v2 "$flag" "$name" 2>"$err"); then
-        # brew's first error line says why, such as a move to a cask
+    json=$(brew info --json=v2 "$flag" "$name" 2>"$err")
+    rc=$?
+    if [[ "$rc" -ne 0 ]]; then
+        # brew's first error line says why, such as a move to a cask; failing
+        # that, its last line and exit code, such as a tap formula that
+        # would not load.
         reason=$(grep -m1 '^Error: ' "$err" | sed 's/^Error: //')
-        why="not found in Homebrew${reason:+ (brew: ${reason})}; remove it or list what replaced it"
+        if [[ -n "$reason" ]]; then
+            reason="brew: ${reason}"
+        else
+            reason="brew exit ${rc}$(grep -v '^[[:space:]]*$' "$err" | tail -n 1 | sed 's/^/: /')"
+        fi
+        why="not found in Homebrew (${reason}); remove it or list what replaced it"
     else
         why=$(verdict "${name##*/}" <<< "$json") || why="brew info gave JSON this check cannot read"
     fi
