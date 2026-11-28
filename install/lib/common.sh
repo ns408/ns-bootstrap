@@ -71,3 +71,29 @@ check_brew_permissions() {
 
     log_info "Homebrew permissions OK (owner: ${prefix_owner}, prefix: ${brew_prefix})"
 }
+
+# === Brewfile Trust (macOS) ===
+# Homebrew 6+ refuses formulae and casks from non-official taps until they are
+# trusted. Taps the Brewfile's taps, then trusts exactly the brew and cask
+# entries marked `trusted: true`, by name: never a whole tap, which would also
+# trust whatever that tap adds later. A Homebrew without `brew trust` is left
+# alone. Used by bootstrap before `brew bundle`, and by Brew Bundle Check.
+trust_brewfile_entries() {  # BREWFILE
+    brew help trust >/dev/null 2>&1 || return 0
+    local line kind name
+    local tap_re='^[[:space:]]*tap[[:space:]]+"([^"]+)"'
+    local entry_re='^[[:space:]]*(brew|cask)[[:space:]]+"([^"]+)"[^#]*trusted:[[:space:]]*true'
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ "$line" =~ $tap_re ]] && { brew tap "${BASH_REMATCH[1]}" >/dev/null 2>&1 || true; }
+    done < "$1"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ "$line" =~ $entry_re ]] || continue
+        kind=${BASH_REMATCH[1]} name=${BASH_REMATCH[2]}
+        [[ "$kind" == brew ]] && kind=formula
+        if brew trust "--${kind}" "$name" >/dev/null 2>&1; then
+            log_info "Trusted ${kind}: ${name}"
+        else
+            log_warn "Could not trust ${kind}: ${name}"
+        fi
+    done < "$1"
+}

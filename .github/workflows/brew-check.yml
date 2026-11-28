@@ -17,13 +17,13 @@ jobs:
       - uses: actions/checkout@v7
 
       # Fails when an entry needs a Brewfile edit: not found, disabled,
-      # deprecated or renamed. Tap formulae need their taps first.
+      # deprecated, renamed, or from a tap and not marked trusted: true.
+      # Taps and trusts exactly as bootstrap does before brew bundle.
       - name: Check Brewfile.${{ matrix.profile }}
         run: |
           file="packages/Brewfile.${{ matrix.profile }}"
-          for tap in $(grep -oE '^tap "[^"]+"' "$file" | cut -d'"' -f2); do
-            brew tap "$tap"
-          done
+          source install/lib/common.sh
+          trust_brewfile_entries "$file"
           scripts/check-brewfile.sh "$file"
 
       # A company Mac takes no software that needs a business licence. Every
