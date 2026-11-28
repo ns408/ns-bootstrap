@@ -122,6 +122,21 @@ BREW
         || { echo "$output"; false; }
 }
 
+@test "with no Error line, a not-found finding quotes brew's last line and exit code" {
+    cat > "${STUB}/bin/brew" <<'BREW'
+#!/usr/bin/env bash
+echo "Warning: first line" >&2
+echo "last thing brew said" >&2
+echo "" >&2
+exit 3
+BREW
+    f=$(brewfile Brewfile <<< 'brew "owner/tap/thing"')
+    run "$CHECK" "$f"
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *'brew "owner/tap/thing": not found in Homebrew (brew exit 3: last thing brew said); remove it'* ]] \
+        || { echo "$output"; false; }
+}
+
 @test "a renamed cask fails and names the new token" {
     # brew resolves the old token to the renamed cask
     echo '{"formulae": [], "casks": [{"token": "docker-desktop", "old_tokens": ["docker"]}]}' \
