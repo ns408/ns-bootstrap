@@ -106,6 +106,22 @@ EOF
     [[ "$output" == *'brew "nosuchthing": not found in Homebrew'* ]] || { echo "$output"; false; }
 }
 
+@test "a not-found finding quotes brew's own reason" {
+    # brew says why on stderr, for example that a formula moved to a cask
+    cat > "${STUB}/bin/brew" <<'BREW'
+#!/usr/bin/env bash
+echo "Warning: an unrelated warning" >&2
+echo 'Error: No available formula with the name "azure-cli". It was migrated to homebrew/cask.' >&2
+echo "  a detail on a second line" >&2
+exit 1
+BREW
+    f=$(brewfile Brewfile <<< 'brew "azure-cli"')
+    run "$CHECK" "$f"
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *'brew "azure-cli": not found in Homebrew (brew: No available formula with the name "azure-cli". It was migrated to homebrew/cask.); remove it or list what replaced it'* ]] \
+        || { echo "$output"; false; }
+}
+
 @test "a renamed cask fails and names the new token" {
     # brew resolves the old token to the renamed cask
     echo '{"formulae": [], "casks": [{"token": "docker-desktop", "old_tokens": ["docker"]}]}' \
